@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/app/lib/db';
-import Lead from '@/app/models/Lead';
+import { LeadService } from '@/app/services/LeadService';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    await connectToDatabase();
-    
-    // Fetch only qualified leads, sorted by score and date
-    const leads = await Lead.find({ isQualified: true })
-      .populate('jobId', 'profileUrl')
-      .sort({ score: -1, createdAt: -1 })
-      .limit(50);
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+
+    const data = await LeadService.getLeads(page, limit);
       
-    return NextResponse.json({ leads });
+    return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
