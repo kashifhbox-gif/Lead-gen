@@ -35,20 +35,37 @@ export async function POST(req: Request) {
     const items = dataset.items;
 
     // Create a Lead record for each post scraped
-    for (const item of items) {
-      const postText = item.text || item.content || item.postContent;
+    for (const item of items as any[]) {
+      const postText = item.content || item.text || item.postContent;
       if (!postText) continue;
+
+      let postedAtStr = '';
+      if (item.postedAt && item.postedAt.date) {
+        postedAtStr = item.postedAt.date;
+      } else if (item.postedAt && typeof item.postedAt === 'string') {
+        postedAtStr = item.postedAt;
+      }
+
+      let commentsCount = item.engagement?.comments || 0;
+      let likesCount = item.engagement?.likes || 0;
+      let sharesCount = item.engagement?.shares || 0;
+      
+      const authorName = item.author?.name || '';
+      const authorInfo = item.author?.info || '';
+      const profileUrl = item.author?.linkedinUrl || item.authorProfileUrl || item.authorUrl || '';
+      const postUrl = item.linkedinUrl || item.url || item.postUrl || '';
 
       await Lead.create({
         jobId: job._id,
-        profileUrl: job.profileUrl,
-        postContent: postText,
-        postUrl: item.url || item.postUrl,
-        postedAt: item.postedAt || item.date,
+        searchQuery: job.searchQuery,
+        profileUrl,
+        postContent: `Author: ${authorName} (${authorInfo})\n\n${postText}`,
+        postUrl,
+        postedAt: postedAtStr,
         engagementStats: {
-          likes: item.likesCount || item.likes || 0,
-          comments: item.commentsCount || item.comments || 0,
-          shares: item.sharesCount || item.shares || 0,
+          likes: likesCount,
+          comments: commentsCount,
+          shares: sharesCount,
         }
       });
     }

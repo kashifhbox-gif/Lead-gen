@@ -2,7 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ILead extends Document {
   jobId: mongoose.Types.ObjectId;
-  profileUrl: string;
+  profileUrl?: string;
+  searchQuery?: string;
   postContent: string;
   postUrl?: string;
   postedAt?: string;
@@ -13,6 +14,7 @@ export interface ILead extends Document {
   };
   score?: number;
   aiReasoning?: string;
+  outreachHook?: string;
   isQualified?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -21,7 +23,8 @@ export interface ILead extends Document {
 const LeadSchema: Schema = new Schema(
   {
     jobId: { type: Schema.Types.ObjectId, ref: 'Job', required: true },
-    profileUrl: { type: String, required: true },
+    profileUrl: { type: String, required: false },
+    searchQuery: { type: String, required: false },
     postContent: { type: String, required: true },
     postUrl: { type: String, required: false },
     postedAt: { type: String, required: false },
@@ -32,6 +35,7 @@ const LeadSchema: Schema = new Schema(
     },
     score: { type: Number, required: false },
     aiReasoning: { type: String, required: false },
+    outreachHook: { type: String, required: false },
     isQualified: { type: Boolean, required: false, default: false },
   },
   {

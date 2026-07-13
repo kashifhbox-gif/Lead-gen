@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, ExternalLink, MessageSquare, Heart, Share2, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Lead {
   _id: string;
@@ -21,8 +22,12 @@ interface Lead {
 }
 
 export default function LeadsPage() {
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   const fetchLeads = async () => {
     try {
@@ -42,6 +47,9 @@ export default function LeadsPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const totalPages = Math.ceil(leads.length / ITEMS_PER_PAGE);
+  const paginatedLeads = leads.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -50,7 +58,7 @@ export default function LeadsPage() {
             <Users className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Qualified Leads</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Qualified Leads</h1>
             <p className="text-sm text-neutral-400">Profiles flagged by AI based on buying signals.</p>
           </div>
         </div>
@@ -70,69 +78,90 @@ export default function LeadsPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {leads.map((lead, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              key={lead._id}
-              className="bg-white/[0.02] border border-white/5 hover:border-purple-500/30 rounded-2xl p-6 flex flex-col transition-colors group relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity">
-                <Sparkles className="w-24 h-24 text-purple-500 -mr-6 -mt-6" />
+        <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden backdrop-blur-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-neutral-400">
+              <thead className="text-xs text-neutral-500 uppercase bg-black/40 border-b border-white/5">
+                <tr>
+                  <th className="px-6 py-4 font-medium whitespace-nowrap">Profile</th>
+                  <th className="px-6 py-4 font-medium w-2/5">Post Preview</th>
+                  <th className="px-6 py-4 font-medium whitespace-nowrap">Engagement</th>
+                  <th className="px-6 py-4 font-medium whitespace-nowrap">AI Score</th>
+                  <th className="px-6 py-4 font-medium text-right whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {paginatedLeads.map((lead) => (
+                  <tr 
+                    key={lead._id} 
+                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer" 
+                    onClick={() => router.push(`/leads/${lead._id}`)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Users className="w-4 h-4 text-purple-400 shrink-0" />
+                        <a 
+                          href={lead.profileUrl} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="font-medium text-white hover:text-purple-400 transition-colors truncate max-w-[120px] sm:max-w-[150px] inline-block"
+                          title={lead.profileUrl}
+                        >
+                          {lead.profileUrl.split('linkedin.com/in/')[1]?.split('/')[0] || 'Unknown'}
+                        </a>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="line-clamp-2 text-neutral-300 min-w-[200px]" title={lead.postContent}>
+                        {lead.postContent}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-neutral-500" /> {lead.engagementStats?.likes || 0}</span>
+                        <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-neutral-500" /> {lead.engagementStats?.comments || 0}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                        <span className="font-semibold text-white">{lead.score}/10</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors">
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-white/5 bg-black/20">
+              <div className="text-xs text-neutral-500">
+                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, leads.length)} of {leads.length} leads
               </div>
-              
-              <div className="flex items-start justify-between mb-4 relative z-10">
-                <a 
-                  href={lead.profileUrl} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="font-medium text-white hover:text-purple-400 transition-colors flex items-center gap-1.5"
+              <div className="flex gap-2">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1)); }}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
                 >
-                  {lead.profileUrl.split('linkedin.com/in/')[1]?.split('/')[0] || 'View Profile'}
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-lg text-xs font-bold shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-                  <Sparkles className="w-3 h-3" />
-                  Score: {lead.score}/10
-                </div>
+                  Previous
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+                >
+                  Next
+                </button>
               </div>
-
-              <div className="bg-black/40 rounded-xl p-4 mb-4 flex-1 relative z-10 border border-white/[0.02]">
-                <p className="text-sm text-neutral-300 line-clamp-4 leading-relaxed mb-3">
-                  "{lead.postContent}"
-                </p>
-                {lead.postUrl && (
-                  <a href={lead.postUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 w-fit">
-                    View original post <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
-              </div>
-
-              <div className="space-y-4 relative z-10">
-                <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-3">
-                  <p className="text-xs text-purple-200/70 mb-1 font-medium uppercase tracking-wider">AI Reasoning</p>
-                  <p className="text-sm text-purple-100/90 leading-snug">{lead.aiReasoning}</p>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs text-neutral-500 pt-2 border-t border-white/5">
-                  <div className="flex items-center gap-1.5">
-                    <Heart className="w-3.5 h-3.5" />
-                    {lead.engagementStats.likes || 0}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    {lead.engagementStats.comments || 0}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Share2 className="w-3.5 h-3.5" />
-                    {lead.engagementStats.shares || 0}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+            </div>
+          )}
         </div>
       )}
     </div>

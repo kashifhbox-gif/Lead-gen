@@ -1,30 +1,65 @@
-import { useState } from 'react';
+"use client";
+
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Loader2, Sparkles, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { Search, Loader2, Sparkles, CheckCircle2, XCircle, ArrowRight, Hash, Database, RefreshCw, Bot } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Home() {
-  const [profileUrl, setProfileUrl] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [maxPosts, setMaxPosts] = useState('20');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [polling, setPolling] = useState(false);
+
+  const fetchJobs = async () => {
+    try {
+      const res = await fetch('/api/campaigns');
+      const data = await res.json();
+      if (data.jobs) {
+        setJobs(data.jobs);
+        
+        // Check if any job is still processing
+        const isProcessing = data.jobs.some((job: any) => job.status === 'SCRAPING' || job.status === 'EVALUATING' || job.status === 'SCRAPED');
+        setPolling(isProcessing);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (polling) {
+      interval = setInterval(fetchJobs, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [polling]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profileUrl) return;
+    if (!searchQuery) return;
     
     setLoading(true);
     setMessage('');
 
     try {
-      const res = await fetch('/api/jobs', {
+      const res = await fetch('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileUrl }),
+        body: JSON.stringify({ searchQuery, maxPosts: parseInt(maxPosts) || 20 }),
       });
       const data = await res.json();
       
       if (res.ok) {
-        setMessage('Job started successfully! The AI is scraping and analyzing the profile in the background.');
-        setProfileUrl('');
+        setMessage('Job started successfully! The AI is searching and analyzing the posts in the background.');
+        setSearchQuery('');
+        fetchJobs(); // trigger immediate refresh
       } else {
         setMessage(`Error: ${data.error}`);
       }
@@ -36,13 +71,13 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-full flex flex-col items-center justify-center p-4 pt-20">
+    <div className="min-h-full flex flex-col items-center p-4 pt-10 md:pt-20 pb-20">
       
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-2xl w-full"
+        className="max-w-3xl w-full"
       >
         <div className="text-center mb-10">
           <motion.div
@@ -57,60 +92,149 @@ export default function Home() {
             AI Lead Generator
           </h1>
           <p className="text-lg text-neutral-400 font-light">
-            Enter a LinkedIn profile. We'll scrape their recent posts and let Gemini qualify them based on B2B SaaS buying signals.
+            Enter a search keyword and how many posts to analyze. We'll find them and let Gemini qualify the leads.
           </p>
         </div>
 
         <motion.div 
-          className="bg-white/[0.03] border border-white/[0.05] rounded-3xl p-2 md:p-4 backdrop-blur-xl shadow-2xl relative overflow-hidden"
+          className="bg-white/[0.03] border border-white/[0.05] rounded-3xl p-4 md:p-6 backdrop-blur-xl shadow-2xl relative overflow-hidden mb-12"
           whileHover={{ borderColor: "rgba(255,255,255,0.1)" }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 opacity-0 hover:opacity-100 transition-opacity duration-500" />
           
-          <form onSubmit={handleGenerate} className="relative flex flex-col md:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
-              <input
-                type="url"
-                value={profileUrl}
-                onChange={(e) => setProfileUrl(e.target.value)}
-                placeholder="https://www.linkedin.com/in/username"
-                className="w-full bg-black/20 border border-white/[0.05] rounded-2xl py-4 pl-12 pr-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-                required
-              />
+          <form onSubmit={handleGenerate} className="relative flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search keyword (e.g., 'hiring software engineers')"
+                  className="w-full bg-black/20 border border-white/[0.05] rounded-2xl py-4 pl-12 pr-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  required
+                />
+              </div>
+              <div className="relative w-full md:w-48">
+                <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={maxPosts}
+                  onChange={(e) => setMaxPosts(e.target.value)}
+                  placeholder="Max Posts"
+                  className="w-full bg-black/20 border border-white/[0.05] rounded-2xl py-4 pl-12 pr-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  required
+                />
+              </div>
             </div>
+            
             <button
               type="submit"
-              disabled={loading || !profileUrl}
+              disabled={loading || !searchQuery}
               className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-medium py-4 px-8 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Generate <ArrowRight className="w-4 h-4" />
+                  Generate Leads <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
+
+          {message && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mt-4 p-4 rounded-xl border flex items-start gap-3 ${
+                message.includes('Error') 
+                  ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              }`}
+            >
+              {message.includes('Error') ? (
+                <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+              )}
+              <p className="text-sm leading-relaxed">{message}</p>
+            </motion.div>
+          )}
         </motion.div>
 
-        {message && (
+        {/* Dashboard Section */}
+        {jobs.length > 0 && (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mt-6 p-4 rounded-xl border flex items-start gap-3 \${
-              message.includes('Error') 
-                ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-            }`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-4"
           >
-            {message.includes('Error') ? (
-              <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            ) : (
-              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-            )}
-            <p className="text-sm leading-relaxed">{message}</p>
+            <h2 className="text-2xl font-semibold mb-4 text-white/90 flex items-center gap-2">
+              <Database className="w-5 h-5 text-indigo-400" />
+              Recent Campaigns
+            </h2>
+
+            <div className="grid gap-4">
+              {jobs.map((job) => (
+                <Link key={job._id} href={`/campaigns/${job._id}`}>
+                  <div className="bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all rounded-2xl p-5 cursor-pointer">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      
+                      <div>
+                        <h3 className="text-lg font-medium text-white mb-1">
+                          "{job.searchQuery}"
+                        </h3>
+                        <p className="text-sm text-neutral-500">
+                          Started {new Date(job.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {/* Status Badge */}
+                        <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 border ${
+                          job.status === 'SCRAPING' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                          job.status === 'EVALUATING' || job.status === 'SCRAPED' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+                          job.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}>
+                          {(job.status === 'SCRAPING' || job.status === 'EVALUATING' || job.status === 'SCRAPED') && (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          )}
+                          {job.status === 'SCRAPING' ? 'Waiting for Apify...' :
+                           job.status === 'SCRAPED' ? 'Scrape Done, Preparing...' :
+                           job.status === 'EVALUATING' ? 'AI Evaluation in progress...' :
+                           job.status}
+                        </div>
+
+                        {/* Stats Badges */}
+                        <div className="flex gap-2">
+                          <div className="px-3 py-1.5 rounded-xl bg-black/30 border border-white/[0.05] text-xs text-neutral-300 flex items-center gap-1.5" title="Total Scraped Leads">
+                            <Database className="w-3.5 h-3.5 text-neutral-400" />
+                            {job.stats?.totalLeads || 0}
+                          </div>
+                          
+                          {(job.status === 'EVALUATING' || job.status === 'COMPLETED') && (
+                            <div className="px-3 py-1.5 rounded-xl bg-black/30 border border-white/[0.05] text-xs text-neutral-300 flex items-center gap-1.5" title="AI Evaluated Leads">
+                              <Bot className="w-3.5 h-3.5 text-indigo-400" />
+                              {job.stats?.evaluatedLeads || 0}/{job.stats?.totalLeads || 0}
+                            </div>
+                          )}
+
+                          <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-400 flex items-center gap-1.5" title="Qualified Leads">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {job.stats?.qualifiedLeads || 0} Qualified
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </motion.div>
         )}
 

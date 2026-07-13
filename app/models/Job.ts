@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IJob extends Document {
-  profileUrl: string;
+  searchQuery: string;
   apifyRunId?: string;
   status: 'PENDING' | 'SCRAPING' | 'SCRAPED' | 'EVALUATING' | 'COMPLETED' | 'FAILED';
   createdAt: Date;
@@ -10,7 +10,7 @@ export interface IJob extends Document {
 
 const JobSchema: Schema = new Schema(
   {
-    profileUrl: { type: String, required: true },
+    searchQuery: { type: String, required: true },
     apifyRunId: { type: String, required: false },
     status: {
       type: String,
