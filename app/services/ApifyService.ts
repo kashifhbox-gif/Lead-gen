@@ -13,7 +13,7 @@ export class ApifyService {
   /**
    * Starts the LinkedIn Post Search actor
    */
-  async startLinkedInScraper(searchQuery: string, maxPosts: number, webhookUrl: string) {
+  async startLinkedInScraper(searchQuery: string, maxPosts: number, webhookUrl: string, filters: any = {}) {
     return await this.client.actor('harvestapi/linkedin-post-search').start(
       {
         searchQueries: [searchQuery],
@@ -23,6 +23,9 @@ export class ApifyService {
         startPage: 1,
         reactionsProfileScraperMode: 'short',
         commentsProfileScraperMode: 'short',
+        ...(filters.postedLimit && { postedLimit: filters.postedLimit }),
+        ...(filters.postedLimitDate && { postedLimitDate: filters.postedLimitDate }),
+        ...(filters.sortBy && { sortBy: filters.sortBy }),
       },
       {
         webhooks: [

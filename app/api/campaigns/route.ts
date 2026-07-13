@@ -14,7 +14,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { searchQuery, maxPosts = 20 } = await req.json();
+    const body = await req.json();
+    const { searchQuery, maxPosts = 20, postedLimit, postedLimitDate, sortBy } = body;
 
     if (!searchQuery) {
       return NextResponse.json({ error: 'Search query is required' }, { status: 400 });
@@ -30,14 +31,16 @@ export async function POST(req: Request) {
 
     const apifyService = new ApifyService(apifyToken);
 
+    const filters = { postedLimit, postedLimitDate, sortBy };
+
     // 1. Create a Job in MongoDB
-    const job = await CampaignService.createCampaign(searchQuery);
+    const job = await CampaignService.createCampaign(searchQuery, filters);
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://sacrifice-palm-compost.ngrok-free.dev');
     const webhookUrl = `${baseUrl}/api/webhooks/apify?jobId=${job._id}`;
 
     // 2. Start Apify Actor
-    const run = await apifyService.startLinkedInScraper(searchQuery, parseInt(maxPosts, 10), webhookUrl);
+    const run = await apifyService.startLinkedInScraper(searchQuery, parseInt(maxPosts as string, 10), webhookUrl, filters);
 
     // 3. Update Job with Run ID
     await CampaignService.updateCampaign(job._id as string, { apifyRunId: run.id });

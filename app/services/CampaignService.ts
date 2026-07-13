@@ -49,11 +49,12 @@ export class CampaignService {
   /**
    * Creates a new campaign/job in the database
    */
-  static async createCampaign(searchQuery: string) {
+  static async createCampaign(searchQuery: string, filters?: any) {
     await connectToDatabase();
     return await Job.create({
       searchQuery,
       status: 'SCRAPING',
+      filters,
     });
   }
 

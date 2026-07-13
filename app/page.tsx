@@ -8,6 +8,10 @@ import Link from 'next/link';
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [maxPosts, setMaxPosts] = useState('20');
+  const [postedLimit, setPostedLimit] = useState('24h');
+  const [postedLimitDate, setPostedLimitDate] = useState('');
+  const [sortBy, setSortBy] = useState('date');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
@@ -52,7 +56,13 @@ export default function Home() {
       const res = await fetch('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchQuery, maxPosts: parseInt(maxPosts) || 20 }),
+        body: JSON.stringify({ 
+          searchQuery, 
+          maxPosts: parseInt(maxPosts) || 20,
+          postedLimit: postedLimit || undefined,
+          postedLimitDate: postedLimitDate || undefined,
+          sortBy: sortBy || undefined,
+        }),
       });
       const data = await res.json();
       
@@ -129,6 +139,65 @@ export default function Home() {
                 />
               </div>
             </div>
+            
+            {/* Advanced Filters Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-sm text-neutral-400 hover:text-white flex items-center gap-2 w-fit transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              {showAdvanced ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
+            </button>
+
+            {/* Advanced Filters */}
+            {showAdvanced && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="flex flex-col md:flex-row gap-4 p-4 bg-black/20 rounded-2xl border border-white/[0.05]"
+              >
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-xs text-neutral-400 uppercase font-semibold tracking-wider">Posted Limit</label>
+                  <select 
+                    value={postedLimit} 
+                    onChange={(e) => setPostedLimit(e.target.value)}
+                    className="w-full bg-black/40 border border-white/[0.05] rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
+                  >
+                    <option value="any">Any Time (any)</option>
+                    <option value="1h">Past hour (1h)</option>
+                    <option value="24h">Past 24 hours (24h)</option>
+                    <option value="week">Past week (week)</option>
+                    <option value="month">Past month (month)</option>
+                    <option value="3months">Past 3 months (3months)</option>
+                    <option value="6months">Past 6 months (6months)</option>
+                    <option value="year">Past year (year)</option>
+                  </select>
+                </div>
+
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-xs text-neutral-400 uppercase font-semibold tracking-wider">Limit Date</label>
+                  <input 
+                    type="date"
+                    value={postedLimitDate}
+                    onChange={(e) => setPostedLimitDate(e.target.value)}
+                    className="w-full bg-black/40 border border-white/[0.05] rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-xs text-neutral-400 uppercase font-semibold tracking-wider">Sort By</label>
+                  <select 
+                    value={sortBy} 
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full bg-black/40 border border-white/[0.05] rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
+                  >
+                    <option value="date">Latest (Date)</option>
+                    <option value="relevance">Top (Relevance)</option>
+                  </select>
+                </div>
+              </motion.div>
+            )}
             
             <button
               type="submit"
