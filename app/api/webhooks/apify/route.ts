@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     const dataset = await apifyService.getDatasetItems(runId);
     const items = dataset.items;
 
-    // Create a Lead record for each post scraped
+    // Create a Lead record for each post
     await LeadService.saveScrapedLeads(jobId, items, job.searchQuery);
 
     await CampaignService.updateCampaign(jobId, { status: 'SCRAPED' });
