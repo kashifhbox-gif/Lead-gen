@@ -42,6 +42,7 @@ export default function JobDetailsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('ALL'); // ALL, QUALIFIED, REJECTED, PENDING
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [deleteCampaignModalOpen, setDeleteCampaignModalOpen] = useState(false);
   const [deleteLeadModalOpen, setDeleteLeadModalOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
@@ -52,11 +53,14 @@ export default function JobDetailsPage() {
 
   const fetchJobDetails = async () => {
     try {
-      const res = await fetch(`/api/campaigns/${jobId}`);
+      const res = await fetch(`/api/campaigns/${jobId}?page=${currentPage}&limit=20&filter=${filter}&searchQuery=${encodeURIComponent(searchQuery)}`);
       if (!res.ok) throw new Error('Job not found');
       const data = await res.json();
       setJob(data.job);
       setLeads(data.leads);
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,7 +72,7 @@ export default function JobDetailsPage() {
     fetchJobDetails();
     const interval = setInterval(fetchJobDetails, 5000);
     return () => clearInterval(interval);
-  }, [jobId]);
+  }, [jobId, currentPage, filter, searchQuery]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -102,23 +106,9 @@ export default function JobDetailsPage() {
   const evaluatedCount = leads.filter(l => l.isQualified !== undefined).length;
   const totalCount = leads.length;
 
-  const filteredLeads = leads.filter(lead => {
-    if (filter === 'QUALIFIED' && !lead.isQualified) return false;
-    if (filter === 'REJECTED' && (lead.isQualified || lead.isQualified === undefined)) return false;
-    if (filter === 'PENDING' && lead.isQualified !== undefined) return false;
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!lead.postContent?.toLowerCase().includes(q) && !lead.aiReasoning?.toLowerCase().includes(q)) {
-        return false;
-      }
-    }
-    return true;
-  });
-
+  // Server-side pagination already applied
+  const filteredLeads = leads;
   const ITEMS_PER_PAGE = 20;
-  const totalPages = Math.ceil(filteredLeads.length / ITEMS_PER_PAGE);
-  const paginatedLeads = filteredLeads.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -209,7 +199,7 @@ export default function JobDetailsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {paginatedLeads.map((lead) => (
+                {filteredLeads.map((lead) => (
                   <tr 
                     key={lead._id} 
                     className="hover:bg-white/[0.02] transition-colors group cursor-pointer" 
@@ -281,7 +271,7 @@ export default function JobDetailsPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t border-white/5 bg-black/20">
               <div className="text-xs text-neutral-500">
-                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredLeads.length)} of {filteredLeads.length} leads
+                Page {currentPage} of {totalPages}
               </div>
               <div className="flex gap-2">
                 <button 

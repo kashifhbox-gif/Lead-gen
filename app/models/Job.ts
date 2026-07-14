@@ -8,6 +8,7 @@ export interface IJob extends Document {
     postedLimit?: string;
     postedLimitDate?: string;
     sortBy?: string;
+    profileScraperMode?: string;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -26,11 +27,14 @@ const JobSchema: Schema = new Schema(
       postedLimit: { type: String, required: false },
       postedLimitDate: { type: String, required: false },
       sortBy: { type: String, required: false },
+      profileScraperMode: { type: String, required: false },
     },
   },
   {
     timestamps: true,
   }
 );
+
+JobSchema.index({ createdAt: -1 });
 
 export default mongoose.models.Job || mongoose.model<IJob>('Job', JobSchema);

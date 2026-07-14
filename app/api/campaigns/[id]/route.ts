@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { CampaignService } from '@/app/services/CampaignService';
+import { PaginationSchema } from '@/app/lib/validations';
 
 export async function GET(
   req: Request,
@@ -11,7 +12,21 @@ export async function GET(
       return NextResponse.json({ error: 'Job ID is required' }, { status: 400 });
     }
 
-    const data = await CampaignService.getCampaignDetails(jobId);
+    const { searchParams } = new URL(req.url);
+    const paginationResult = PaginationSchema.safeParse({
+      page: searchParams.get('page') || undefined,
+      limit: searchParams.get('limit') || undefined,
+    });
+
+    if (!paginationResult.success) {
+      return NextResponse.json({ error: 'Invalid pagination parameters' }, { status: 400 });
+    }
+
+    const { page, limit } = paginationResult.data;
+    const filter = searchParams.get('filter') || 'ALL';
+    const searchQuery = searchParams.get('searchQuery') || '';
+
+    const data = await CampaignService.getCampaignDetails(jobId, page, limit, filter, searchQuery);
     
     return NextResponse.json(data);
   } catch (error: any) {

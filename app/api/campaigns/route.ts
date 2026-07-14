@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { CampaignService } from '@/app/services/CampaignService';
 import { SettingsService } from '@/app/services/SettingsService';
 import { ApifyService } from '@/app/services/ApifyService';
+import { CampaignService } from '@/app/services/CampaignService';
+import { CampaignCreateSchema } from '@/app/lib/validations';
 
 export async function GET() {
   try {
@@ -15,11 +16,13 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { searchQuery, maxPosts = 20, postedLimit, postedLimitDate, sortBy } = body;
-
-    if (!searchQuery) {
-      return NextResponse.json({ error: 'Search query is required' }, { status: 400 });
+    const result = CampaignCreateSchema.safeParse(body);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
+
+    const { searchQuery, maxPosts, postedLimit, postedLimitDate, sortBy, profileScraperMode } = result.data;
 
     // Get the global API key config
     const adminConfig = await SettingsService.getAdminConfig();
@@ -31,7 +34,7 @@ export async function POST(req: Request) {
 
     const apifyService = new ApifyService(apifyToken);
 
-    const filters = { postedLimit, postedLimitDate, sortBy };
+    const filters = { postedLimit, postedLimitDate, sortBy, profileScraperMode };
 
     // 1. Create a Job in MongoDB
     const job = await CampaignService.createCampaign(searchQuery, filters);
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
     const webhookUrl = `${baseUrl}/api/webhooks/apify?jobId=${job._id}`;
 
     // 2. Start Apify Actor
-    const run = await apifyService.startLinkedInScraper(searchQuery, parseInt(maxPosts as string, 10), webhookUrl, filters);
+    const run = await apifyService.startLinkedInScraper(searchQuery, maxPosts, webhookUrl, filters);
 
     // 3. Update Job with Run ID
     await CampaignService.updateCampaign(job._id as string, { apifyRunId: run.id });

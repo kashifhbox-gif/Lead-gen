@@ -27,13 +27,15 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const ITEMS_PER_PAGE = 20;
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch('/api/leads');
+      const res = await fetch(`/api/leads?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
       const data = await res.json();
       if (data.leads) setLeads(data.leads);
+      if (data.pagination) setTotalPages(data.pagination.totalPages);
     } catch (err) {
       console.error(err);
     } finally {
@@ -45,10 +47,10 @@ export default function LeadsPage() {
     fetchLeads();
     const interval = setInterval(fetchLeads, 10000); // Poll every 10s
     return () => clearInterval(interval);
-  }, []);
+  }, [currentPage]);
 
-  const totalPages = Math.ceil(leads.length / ITEMS_PER_PAGE);
-  const paginatedLeads = leads.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  // Server-side pagination already applied
+  const paginatedLeads = leads;
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -142,7 +144,7 @@ export default function LeadsPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t border-white/5 bg-black/20">
               <div className="text-xs text-neutral-500">
-                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, leads.length)} of {leads.length} leads
+                Page {currentPage} of {totalPages}
               </div>
               <div className="flex gap-2">
                 <button 

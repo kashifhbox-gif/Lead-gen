@@ -25,9 +25,9 @@ export class CampaignService {
   }
 
   /**
-   * Fetches a single campaign by ID along with its associated leads
+   * Fetches a single campaign by ID along with its associated leads (paginated)
    */
-  static async getCampaignDetails(jobId: string) {
+  static async getCampaignDetails(jobId: string, page: number = 1, limit: number = 50, filter: string = 'ALL', searchQuery: string = '') {
     await connectToDatabase();
     const job = await Job.findById(jobId).lean();
     
@@ -35,15 +35,49 @@ export class CampaignService {
       throw new Error('Campaign not found');
     }
 
-    const leads = await Lead.find({ jobId }).sort({ score: -1, createdAt: -1 }).lean();
+    const skip = (page - 1) * limit;
+
+    // Build the query object
+    const query: any = { jobId };
+    
+    if (filter === 'QUALIFIED') query.isQualified = true;
+    if (filter === 'REJECTED') query.isQualified = false;
+    if (filter === 'PENDING') query.isQualified = { $exists: false };
+
+    if (searchQuery) {
+      const q = new RegExp(searchQuery, 'i');
+      query.$or = [
+        { postContent: q },
+        { aiReasoning: q }
+      ];
+    }
+
+    const [leads, totalLeadsCount] = await Promise.all([
+      Lead.find(query)
+        .sort({ score: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Lead.countDocuments(query),
+    ]);
     
     const stats = {
-      totalLeads: leads.length,
-      qualifiedLeads: leads.filter(l => l.isQualified).length,
-      evaluatedLeads: leads.filter(l => l.score !== undefined).length,
+      totalLeads: totalLeadsCount,
+      qualifiedLeads: await Lead.countDocuments({ jobId, isQualified: true }),
+      evaluatedLeads: await Lead.countDocuments({ jobId, score: { $exists: true } }),
     };
 
-    return { job, leads, stats };
+    return { 
+      job, 
+      leads, 
+      stats,
+      pagination: {
+        total: totalLeadsCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalLeadsCount / limit)
+      }
+    };
   }
 
   /**

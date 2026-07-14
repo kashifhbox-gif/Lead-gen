@@ -19,7 +19,7 @@ export class ApifyService {
         searchQueries: [searchQuery],
         maxPosts: maxPosts || 20,
         deepScrape: false,
-        profileScraperMode: 'short',
+        profileScraperMode: filters.profileScraperMode || 'short',
         startPage: 1,
         reactionsProfileScraperMode: 'short',
         commentsProfileScraperMode: 'short',

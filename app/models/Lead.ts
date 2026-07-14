@@ -43,4 +43,7 @@ const LeadSchema: Schema = new Schema(
   }
 );
 
+LeadSchema.index({ isQualified: 1, createdAt: -1 });
+LeadSchema.index({ jobId: 1 });
+
 export default mongoose.models.Lead || mongoose.model<ILead>('Lead', LeadSchema);
