@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const CampaignCreateSchema = z.object({
   searchQuery: z.string().min(1, 'Search query is required'),
-  maxPosts: z.number().int().min(1).max(100).optional().default(20),
+  maxPosts: z.number().int().min(1).max(1000).optional().default(20),
   postedLimit: z.string().optional(),
   postedLimitDate: z.string().optional(),
   sortBy: z.string().optional(),

@@ -125,7 +125,7 @@ export default function NewCampaignPage() {
                 <input
                   type="number"
                   min="1"
-                  max="100"
+                  max="1000"
                   value={maxPosts}
                   onChange={(e) => setMaxPosts(e.target.value)}
                   placeholder="Max Posts"
