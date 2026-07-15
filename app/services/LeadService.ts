@@ -26,6 +26,14 @@ export class LeadService {
   }
 
   /**
+   * Fetches all leads for a specific job
+   */
+  static async getLeadsByJobId(jobId: string) {
+    await connectToDatabase();
+    return await Lead.find({ jobId }).lean();
+  }
+
+  /**
    * Fetches un-evaluated leads for a specific job
    */
   static async getUnevaluatedLeads(jobId: string) {

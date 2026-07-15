@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Save, BrainCircuit, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, BrainCircuit, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'prompt' | 'keys'>('prompt');
@@ -10,8 +10,10 @@ export default function SettingsPage() {
   const [apifyKey, setApifyKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('');
+  const [apolloKey, setApolloKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function SettingsPage() {
           setApifyKey(data.apifyApiKey || '');
           setGeminiKey(data.geminiApiKey || '');
           setGeminiModel(data.geminiModel || 'gemini-2.5-flash');
+          setApolloKey(data.apolloApiKey || '');
         }
       } catch (err) {
         console.error('Failed to load settings', err);
@@ -46,6 +49,7 @@ export default function SettingsPage() {
         payload.apifyApiKey = apifyKey;
         payload.geminiApiKey = geminiKey;
         payload.geminiModel = geminiModel || 'gemini-2.5-flash';
+        payload.apolloApiKey = apolloKey;
       }
 
       const res = await fetch('/api/settings', {
@@ -134,17 +138,24 @@ export default function SettingsPage() {
               <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5 text-purple-400" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-lg font-semibold text-white">API Credentials</h2>
-                <p className="text-sm text-neutral-400">Manage keys for Apify (LinkedIn Scraping) and Gemini (AI Evaluation).</p>
+                <p className="text-sm text-neutral-400">Manage keys for Apify, Gemini, and Apollo.</p>
               </div>
+              <button 
+                onClick={() => setShowKeys(!showKeys)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-neutral-300 transition-colors"
+              >
+                {showKeys ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showKeys ? 'Hide' : 'Show'} Keys
+              </button>
             </div>
 
             <div className="space-y-6 mb-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-2">Apify API Token</label>
                 <input
-                  type="password"
+                  type={showKeys ? "text" : "password"}
                   value={apifyKey}
                   onChange={(e) => setApifyKey(e.target.value)}
                   placeholder="apify_api_..."
@@ -156,7 +167,7 @@ export default function SettingsPage() {
               <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-2">Gemini API Key</label>
                 <input
-                  type="password"
+                  type={showKeys ? "text" : "password"}
                   value={geminiKey}
                   onChange={(e) => setGeminiKey(e.target.value)}
                   placeholder="AIza..."
@@ -174,6 +185,17 @@ export default function SettingsPage() {
                   className="w-full bg-neutral-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
                 />
                 <p className="text-xs text-neutral-500 mt-1">Specify which AI model to use for evaluations (e.g. gemini-3.1-flash-lite, gemini-2.5-flash).</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Apollo API Key</label>
+                <input
+                  type={showKeys ? "text" : "password"}
+                  value={apolloKey}
+                  onChange={(e) => setApolloKey(e.target.value)}
+                  placeholder="apollo_api_..."
+                  className="w-full bg-neutral-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
+                />
+                <p className="text-xs text-neutral-500 mt-1">Used to enrich lead data with email addresses and phone numbers.</p>
               </div>
             </div>
           </>
