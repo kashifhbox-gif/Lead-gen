@@ -29,9 +29,14 @@ export class AiService {
   /**
    * Evaluates a lead's post content using Gemini
    */
-  async evaluateLead(postContent: string) {
+  async evaluateLead(postContent: string, searchQuery?: string) {
+    const dynamicContext = searchQuery 
+      ? `\nIMPORTANT CONTEXT: This lead was found by searching LinkedIn for the keyword: "${searchQuery}". Please heavily weight your score based on how relevant this post is to that specific search intent.`
+      : "";
+
     const prompt = `
       ${this.basePrompt}
+      ${dynamicContext}
       
       IMPORTANT: Format your response strictly as JSON with this exact structure:
       { "score": number, "reasoning": "string", "outreachHook": "string" }

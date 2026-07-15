@@ -47,7 +47,7 @@ export const evaluateLeads = inngest.createFunction(
 
           const aiService = new AiService(geminiKey, modelName, basePrompt);
 
-          const aiResult = await aiService.evaluateLead(lead.postContent);
+          const aiResult = await aiService.evaluateLead(lead.postContent, lead.searchQuery);
           const score = aiResult.score || 0;
 
           await LeadService.updateLead(lead._id, {
