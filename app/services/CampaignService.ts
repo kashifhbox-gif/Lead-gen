@@ -25,6 +25,42 @@ export class CampaignService {
   }
 
   /**
+   * Fetches paginated campaigns with their lead statistics
+   */
+  static async getCampaignsPaginated(page: number = 1, limit: number = 20) {
+    await connectToDatabase();
+    const skip = (page - 1) * limit;
+
+    const [jobs, totalCount] = await Promise.all([
+      Job.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Job.countDocuments()
+    ]);
+    
+    const jobsWithStats = await Promise.all(
+      jobs.map(async (job) => {
+        const totalLeads = await Lead.countDocuments({ jobId: job._id });
+        const qualifiedLeads = await Lead.countDocuments({ jobId: job._id, isQualified: true });
+        const evaluatedLeads = await Lead.countDocuments({ jobId: job._id, score: { $exists: true } });
+        
+        return {
+          ...job,
+          stats: { totalLeads, qualifiedLeads, evaluatedLeads },
+        };
+      })
+    );
+
+    return {
+      jobs: jobsWithStats,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    };
+  }
+
+  /**
    * Fetches a single campaign by ID along with its associated leads (paginated)
    */
   static async getCampaignDetails(jobId: string, page: number = 1, limit: number = 50, filter: string = 'ALL', searchQuery: string = '') {

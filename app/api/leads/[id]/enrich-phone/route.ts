@@ -50,47 +50,46 @@ export async function POST(
       }
     }
 
-    const apolloData = await apolloService.enrichLead(lead.profileUrl, name);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://sacrifice-palm-compost.ngrok-free.dev');
+    const webhookUrl = `${baseUrl}/api/webhooks/apollo-phone?leadId=${lead._id}`;
+
+    const apolloData = await apolloService.enrichLeadPhone(lead.profileUrl, name, webhookUrl);
     
     if (apolloData && apolloData.person) {
       const person = apolloData.person;
-      const emails = [];
-      if (person.email) emails.push(person.email);
-      if (person.personal_emails && person.personal_emails.length > 0) {
-        emails.push(...person.personal_emails);
-      }
 
       const phoneNumbers = person.phone_numbers ? person.phone_numbers.map((p: any) => p.sanitized_number) : [];
 
-      lead.firstPersonalEmail = emails[0] || undefined;
-      lead.allEmails = Array.from(new Set(emails));
-      lead.firstName = person.first_name || lead.firstName;
-      lead.lastName = person.last_name || lead.lastName;
-      lead.phones = phoneNumbers;
-      lead.apolloEnrichmentAttempted = true;
-      lead.apolloEmailEnrichmentRequested = true;
+      if (phoneNumbers.length > 0) {
+        lead.phones = [...new Set([...(lead.phones || []), ...phoneNumbers])];
+        lead.firstName = person.first_name || lead.firstName;
+        lead.lastName = person.last_name || lead.lastName;
+        lead.apolloPhoneEnrichmentRequested = true;
+        await lead.save();
 
-      await lead.save();
-
-      const hasContactInfo = emails.length > 0 || phoneNumbers.length > 0;
-
-      return NextResponse.json({ 
-        message: hasContactInfo ? 'Contact info fetched successfully!' : 'Profile matched, but no contact info found.', 
-        lead 
-      });
+        return NextResponse.json({ 
+          message: 'Phone number fetched successfully from cache!', 
+          lead 
+        });
+      } else {
+        lead.apolloPhoneEnrichmentRequested = true;
+        await lead.save();
+        return NextResponse.json({ 
+          message: 'Phone enrichment queued. It may take a few minutes for the number to appear on this page.', 
+          lead 
+        });
+      }
     } else {
-      lead.apolloEnrichmentAttempted = true;
-      lead.apolloEmailEnrichmentRequested = true;
+      lead.apolloPhoneEnrichmentRequested = true;
       await lead.save();
-
       return NextResponse.json({ 
-        message: 'Apollo request succeeded but no person match found for this profile.', 
+        message: 'Phone enrichment queued. It may take a few minutes for the number to appear on this page.', 
         lead 
       });
     }
 
   } catch (error: any) {
-    console.error('Lead Enrichment Error:', error);
+    console.error('Lead Phone Enrichment Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

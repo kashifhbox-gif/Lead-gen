@@ -25,11 +25,20 @@ export default function JobsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 10;
+
   const fetchJobs = async () => {
     try {
-      const res = await fetch('/api/campaigns');
+      const res = await fetch(`/api/campaigns?page=${page}&limit=${limit}`);
       const data = await res.json();
       if (data.jobs) setJobs(data.jobs);
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages);
+        setTotalCount(data.pagination.total);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -41,7 +50,7 @@ export default function JobsPage() {
     fetchJobs();
     const interval = setInterval(fetchJobs, 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, []);
+  }, [page]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -68,8 +77,15 @@ export default function JobsPage() {
           <Activity className="w-5 h-5 text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Active Campaigns</h1>
-          <p className="text-sm text-neutral-400">Monitor your scraping and AI evaluation queues.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
+            Active Campaigns
+            {totalCount > 0 && (
+              <span className="text-sm font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {totalCount} Total
+              </span>
+            )}
+          </h1>
+          <p className="text-sm text-neutral-400 mt-1">Monitor your scraping and AI evaluation queues.</p>
         </div>
       </div>
 
@@ -158,6 +174,28 @@ export default function JobsPage() {
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-8">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:hover:bg-white/5 rounded-lg transition-colors text-sm text-neutral-300"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-neutral-400">
+            Page <strong className="text-white">{page}</strong> of <strong className="text-white">{totalPages}</strong>
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:hover:bg-white/5 rounded-lg transition-colors text-sm text-neutral-300"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteModalOpen}

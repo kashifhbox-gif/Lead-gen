@@ -4,10 +4,14 @@ import { ApifyService } from '@/app/services/ApifyService';
 import { CampaignService } from '@/app/services/CampaignService';
 import { CampaignCreateSchema } from '@/app/lib/validations';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const jobsWithStats = await CampaignService.getRecentCampaigns(5);
-    return NextResponse.json({ jobs: jobsWithStats });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+
+    const result = await CampaignService.getCampaignsPaginated(page, limit);
+    return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

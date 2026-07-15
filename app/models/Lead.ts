@@ -22,6 +22,8 @@ export interface ILead extends Document {
   personalEmails?: string[];
   phones?: string[];
   apolloEnrichmentAttempted?: boolean;
+  apolloEmailEnrichmentRequested?: boolean;
+  apolloPhoneEnrichmentRequested?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +51,8 @@ const LeadSchema: Schema = new Schema(
     personalEmails: [{ type: String, required: false }],
     phones: [{ type: String, required: false }],
     apolloEnrichmentAttempted: { type: Boolean, required: false, default: false },
+    apolloEmailEnrichmentRequested: { type: Boolean, required: false, default: false },
+    apolloPhoneEnrichmentRequested: { type: Boolean, required: false, default: false },
   },
   {
     timestamps: true,

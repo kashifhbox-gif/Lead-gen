@@ -48,4 +48,47 @@ export class ApolloService {
     const data = await response.json();
     return data;
   }
+
+  /**
+   * Enrich a lead specifically to find their phone number
+   */
+  async enrichLeadPhone(linkedinUrl: string, name?: string, webhookUrl?: string) {
+    const payload: any = {
+      linkedin_url: linkedinUrl,
+      reveal_phone_number: true,
+    };
+
+    if (webhookUrl) {
+      payload.webhook_url = webhookUrl;
+    }
+
+    if (name) {
+      const nameParts = name.trim().split(' ');
+      if (nameParts.length > 1) {
+        payload.first_name = nameParts[0];
+        payload.last_name = nameParts.slice(1).join(' ');
+      } else {
+        payload.first_name = name;
+      }
+    }
+
+    const response = await fetch(`${this.baseUrl}/people/match`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'X-Api-Key': this.apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('Apollo API Error Response:', text);
+      throw new Error(`Apollo API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  }
 }
