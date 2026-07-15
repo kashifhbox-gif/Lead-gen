@@ -63,6 +63,7 @@ export class CampaignService {
     
     const stats = {
       totalLeads: totalLeadsCount,
+      globalTotalLeads: await Lead.countDocuments({ jobId }),
       qualifiedLeads: await Lead.countDocuments({ jobId, isQualified: true }),
       evaluatedLeads: await Lead.countDocuments({ jobId, score: { $exists: true } }),
     };

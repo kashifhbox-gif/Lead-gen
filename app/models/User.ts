@@ -7,6 +7,7 @@ export interface IUser extends Document {
   apifyApiKey?: string;
   geminiApiKey?: string;
   geminiModel?: string;
+  apolloApiKey?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +51,10 @@ Provide a short 1-2 sentence reasoning for your score.`
       type: String,
       required: false,
       default: 'gemini-2.5-flash'
+    },
+    apolloApiKey: {
+      type: String,
+      required: false
     }
   },
   {

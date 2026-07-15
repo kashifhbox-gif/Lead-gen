@@ -21,7 +21,8 @@ export class AiService {
       - 4-6: User is discussing general tech topics but not explicitly hiring.
       - 0: User is promoting their own software services (a competitor), selling courses, or discussing unrelated topics.
 
-      Provide a short 1-2 sentence reasoning for your score.
+      Provide a short 1-2 sentence reasoning for your score. 
+      IMPORTANT: If the user provides an email address or phone number in the post, make sure to HIGHLIGHT IT in the reasoning so we don't have to spend credits fetching it.
     `;
   }
 

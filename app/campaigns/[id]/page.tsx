@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, ExternalLink, Clock, CheckCircle2, XCircle, Loader2, ArrowLeft, ThumbsUp, MessageSquare, BrainCircuit } from 'lucide-react';
+import { Activity, ExternalLink, Clock, CheckCircle2, XCircle, Loader2, ArrowLeft, ThumbsUp, MessageSquare, BrainCircuit, Mail, Download } from 'lucide-react';
 import Link from 'next/link';
 
 import ConfirmModal from '@/components/ConfirmModal';
@@ -27,6 +27,7 @@ interface Job {
   searchQuery?: string;
   profileUrl?: string;
   status: string;
+  emailEnrichmentStatus?: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   createdAt: string;
 }
 
@@ -38,6 +39,7 @@ export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalLeads: 0, globalTotalLeads: 0, qualifiedLeads: 0, evaluatedLeads: 0 });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('ALL'); // ALL, QUALIFIED, REJECTED, PENDING
@@ -46,6 +48,8 @@ export default function JobDetailsPage() {
   const [deleteCampaignModalOpen, setDeleteCampaignModalOpen] = useState(false);
   const [deleteLeadModalOpen, setDeleteLeadModalOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMessage, setEnrichMessage] = useState('');
 
   useEffect(() => {
     setCurrentPage(1);
@@ -58,6 +62,7 @@ export default function JobDetailsPage() {
       const data = await res.json();
       setJob(data.job);
       setLeads(data.leads);
+      if (data.stats) setStats(data.stats);
       if (data.pagination) {
         setTotalPages(data.pagination.totalPages);
       }
@@ -73,6 +78,26 @@ export default function JobDetailsPage() {
     const interval = setInterval(fetchJobDetails, 5000);
     return () => clearInterval(interval);
   }, [jobId, currentPage, filter, searchQuery]);
+
+  const handleEnrichEmails = async () => {
+    setEnriching(true);
+    setEnrichMessage('');
+    try {
+      const res = await fetch(`/api/campaigns/${jobId}/enrich`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setEnrichMessage(data.message);
+        fetchJobDetails(); // Fetch immediately to show RUNNING status
+      } else {
+        setEnrichMessage(data.error || data.message || 'Failed to start enrichment');
+      }
+    } catch (err) {
+      setEnrichMessage('An error occurred');
+    } finally {
+      setEnriching(false);
+      setTimeout(() => setEnrichMessage(''), 5000);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -103,8 +128,8 @@ export default function JobDetailsPage() {
     );
   }
 
-  const evaluatedCount = leads.filter(l => l.isQualified !== undefined).length;
-  const totalCount = leads.length;
+  const evaluatedCount = stats.evaluatedLeads || 0;
+  const totalCount = stats.globalTotalLeads || 0;
 
   // Server-side pagination already applied
   const filteredLeads = leads;
@@ -157,8 +182,51 @@ export default function JobDetailsPage() {
         </div>
       </div>
 
+      {enrichMessage && (
+        <div className="mb-4 px-4 py-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl text-sm flex items-center gap-2">
+          <Mail className="w-4 h-4" />
+          {enrichMessage}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h2 className="text-lg font-semibold text-white">Scraped Leads ({filteredLeads.length})</h2>
+        <div className="flex items-center gap-4 flex-wrap">
+          <h2 className="text-lg font-semibold text-white">Scraped Leads ({stats.totalLeads})</h2>
+          <a 
+            href={`/api/export-leads?jobId=${jobId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg text-sm font-medium transition-colors border border-white/10"
+          >
+            <Download className="w-4 h-4" />
+            Export Qualified
+          </a>
+          {job?.emailEnrichmentStatus !== 'RUNNING' && job?.emailEnrichmentStatus !== 'COMPLETED' && (
+            <button 
+              onClick={handleEnrichEmails}
+              disabled={enriching}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {enriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              Find Emails for Qualified Leads
+            </button>
+          )}
+          {job?.emailEnrichmentStatus === 'RUNNING' && (
+            <span className="text-sm text-yellow-500 font-medium flex items-center gap-1">
+               Running...
+            </span>
+          )}
+          {job?.emailEnrichmentStatus === 'COMPLETED' && (
+            <span className="text-sm text-emerald-400 font-medium flex items-center gap-1">
+               <CheckCircle2 className="w-4 h-4" /> Complete
+            </span>
+          )}
+          {job?.emailEnrichmentStatus === 'FAILED' && (
+            <span className="text-sm text-red-400 font-medium flex items-center gap-1">
+               <XCircle className="w-4 h-4" /> Failed
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <input 
             type="text" 
@@ -241,9 +309,13 @@ export default function JobDetailsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {lead.isQualified === true && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Qualified</span>}
-                      {lead.isQualified === false && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>}
-                      {lead.isQualified === undefined && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">Evaluating</span>}
+                      {lead.score === undefined ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">Evaluating</span>
+                      ) : lead.isQualified ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Qualified</span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3">

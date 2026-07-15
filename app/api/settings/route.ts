@@ -17,7 +17,8 @@ export async function GET() {
       aiPrompt: user.aiPrompt,
       apifyApiKey: user.apifyApiKey || '',
       geminiApiKey: user.geminiApiKey || '',
-      geminiModel: user.geminiModel || 'gemini-2.5-flash'
+      geminiModel: user.geminiModel || 'gemini-2.5-flash',
+      apolloApiKey: user.apolloApiKey || ''
     });
   } catch (error: any) {
     console.error('Settings GET Error:', error);
@@ -50,7 +51,8 @@ export async function PUT(req: Request) {
       aiPrompt: user.aiPrompt,
       apifyApiKey: user.apifyApiKey,
       geminiApiKey: user.geminiApiKey,
-      geminiModel: user.geminiModel
+      geminiModel: user.geminiModel,
+      apolloApiKey: user.apolloApiKey
     });
   } catch (error: any) {
     console.error('Settings PUT Error:', error);

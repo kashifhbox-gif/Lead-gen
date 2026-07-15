@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, ExternalLink, ArrowLeft, ThumbsUp, MessageSquare, BrainCircuit, CheckCircle2, XCircle, Loader2, Calendar } from 'lucide-react';
+import { Activity, ExternalLink, ArrowLeft, ThumbsUp, MessageSquare, BrainCircuit, CheckCircle2, XCircle, Loader2, Calendar, Mail, Edit2, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import ConfirmModal from '@/components/ConfirmModal';
 
@@ -20,6 +20,12 @@ interface Lead {
   aiReasoning?: string;
   outreachHook?: string;
   isQualified?: boolean;
+  firstName?: string;
+  lastName?: string;
+  firstPersonalEmail?: string;
+  personalEmails?: string[];
+  phones?: string[];
+  apolloEnrichmentAttempted?: boolean;
   postedAt?: string;
   jobId?: {
     _id: string;
@@ -36,6 +42,77 @@ export default function LeadDetailsPage() {
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMessage, setEnrichMessage] = useState('');
+  
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
+  });
+
+  const handleEditClick = () => {
+    if (!lead) return;
+    setEditForm({
+      firstName: lead.firstName || '',
+      lastName: lead.lastName || '',
+      email: lead.firstPersonalEmail || '',
+      phone: lead.phones && lead.phones.length > 0 ? lead.phones[0] : ''
+    });
+    setIsEditingContact(true);
+  };
+
+  const handleSaveContact = async () => {
+    setSavingContact(true);
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          firstPersonalEmail: editForm.email,
+          phone: editForm.phone
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.lead) {
+        setLead(data.lead);
+        setIsEditingContact(false);
+      } else {
+        alert(data.error || 'Failed to save contact info');
+      }
+    } catch (e) {
+      alert('Error saving contact info');
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const handleEnrichLead = async () => {
+    setEnriching(true);
+    setEnrichMessage('');
+    try {
+      const res = await fetch(`/api/leads/${leadId}/enrich`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setEnrichMessage(data.message || 'Contact info fetched successfully!');
+        if (data.lead) {
+          setLead(data.lead);
+        }
+      } else {
+        setEnrichMessage(data.error || data.message || 'Failed to fetch contact info');
+      }
+    } catch (err) {
+      setEnrichMessage('An error occurred while fetching contact info.');
+    } finally {
+      setEnriching(false);
+      setTimeout(() => setEnrichMessage(''), 5000);
+    }
+  };
 
   useEffect(() => {
     const fetchLeadDetails = async () => {
@@ -80,13 +157,32 @@ export default function LeadDetailsPage() {
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm font-medium">Back</span>
         </button>
-        <button 
-          onClick={() => setDeleteModalOpen(true)}
-          className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition-colors"
-        >
-          Delete Lead
-        </button>
+        <div className="flex gap-3">
+          {lead?.profileUrl && !lead.firstPersonalEmail && !lead.apolloEnrichmentAttempted && (
+            <button 
+              onClick={handleEnrichLead}
+              disabled={enriching}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {enriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              Find Contact Info
+            </button>
+          )}
+          <button 
+            onClick={() => setDeleteModalOpen(true)}
+            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition-colors"
+          >
+            Delete Lead
+          </button>
+        </div>
       </div>
+      
+      {enrichMessage && (
+        <div className={`mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${enrichMessage.includes('error') || enrichMessage.includes('Failed') ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
+          <Mail className="w-4 h-4" />
+          {enrichMessage}
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteModalOpen}
@@ -198,6 +294,123 @@ export default function LeadDetailsPage() {
             </div>
           </div>
         </div>
+
+        {/* Contact Information */}
+        {(lead.firstPersonalEmail || lead.firstName || lead.lastName || isEditingContact) && (
+          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Contact Information
+              </h3>
+              {!isEditingContact && (
+                <button 
+                  onClick={handleEditClick}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-xs font-medium transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit Details
+                </button>
+              )}
+            </div>
+            
+            {isEditingContact ? (
+              <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-xl border border-white/5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">First Name</label>
+                    <input 
+                      type="text" 
+                      value={editForm.firstName}
+                      onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Last Name</label>
+                    <input 
+                      type="text" 
+                      value={editForm.lastName}
+                      onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Email Address</label>
+                  <input 
+                    type="email" 
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Phone Number</label>
+                  <input 
+                    type="text" 
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-2">
+                  <button 
+                    onClick={() => setIsEditingContact(false)}
+                    className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveContact}
+                    disabled={savingContact}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {savingContact ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Details
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+              {(lead.firstName || lead.lastName) && (
+                <div className="text-white font-medium text-lg">
+                  {lead.firstName} {lead.lastName}
+                </div>
+              )}
+              {lead.firstPersonalEmail ? (
+                <div className="text-emerald-300 font-medium text-lg flex items-center gap-2">
+                  {lead.firstPersonalEmail}
+                </div>
+              ) : (
+                <div className="text-neutral-500 italic text-sm mt-1">
+                  No email address available.
+                </div>
+              )}
+              {lead.personalEmails && lead.personalEmails.length > 1 && (
+                <div className="mt-2 text-sm text-neutral-400">
+                  <p className="mb-1 font-medium text-neutral-500 uppercase tracking-wider text-xs">Other Known Emails:</p>
+                  <ul className="list-disc list-inside">
+                    {lead.personalEmails.filter(e => e !== lead.firstPersonalEmail).map(e => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {lead.phones && lead.phones.length > 0 && (
+                <div className="mt-2 text-sm text-neutral-400">
+                  <p className="mb-1 font-medium text-neutral-500 uppercase tracking-wider text-xs">Phone Numbers:</p>
+                  <ul className="list-disc list-inside">
+                    {lead.phones.map(p => (
+                      <li key={p} className="text-emerald-300">{p}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            )}
+          </div>
+        )}
 
         {/* AI Reasoning */}
         {lead.aiReasoning && (

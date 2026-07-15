@@ -4,6 +4,8 @@ export interface IJob extends Document {
   searchQuery: string;
   apifyRunId?: string;
   status: 'PENDING' | 'SCRAPING' | 'SCRAPED' | 'EVALUATING' | 'COMPLETED' | 'FAILED';
+  emailEnrichmentStatus?: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  emailEnrichmentRunId?: string;
   filters?: {
     postedLimit?: string;
     postedLimitDate?: string;
@@ -23,6 +25,12 @@ const JobSchema: Schema = new Schema(
       enum: ['PENDING', 'SCRAPING', 'SCRAPED', 'EVALUATING', 'COMPLETED', 'FAILED'],
       default: 'PENDING',
     },
+    emailEnrichmentStatus: {
+      type: String,
+      enum: ['IDLE', 'RUNNING', 'COMPLETED', 'FAILED'],
+      default: 'IDLE',
+    },
+    emailEnrichmentRunId: { type: String, required: false },
     filters: {
       postedLimit: { type: String, required: false },
       postedLimitDate: { type: String, required: false },

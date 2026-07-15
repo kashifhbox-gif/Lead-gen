@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, ExternalLink, MessageSquare, Heart, Share2, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Users, ExternalLink, MessageSquare, Heart, Share2, Sparkles, Loader2, ArrowRight, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -64,6 +64,17 @@ export default function LeadsPage() {
             <p className="text-sm text-neutral-400">Profiles flagged by AI based on buying signals.</p>
           </div>
         </div>
+        {leads.length > 0 && (
+          <a 
+            href="/api/export-leads"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export All CSV
+          </a>
+        )}
       </div>
 
       {loading ? (

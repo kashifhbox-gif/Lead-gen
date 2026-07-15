@@ -16,6 +16,12 @@ export interface ILead extends Document {
   aiReasoning?: string;
   outreachHook?: string;
   isQualified?: boolean;
+  firstName?: string;
+  lastName?: string;
+  firstPersonalEmail?: string;
+  personalEmails?: string[];
+  phones?: string[];
+  apolloEnrichmentAttempted?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +43,12 @@ const LeadSchema: Schema = new Schema(
     aiReasoning: { type: String, required: false },
     outreachHook: { type: String, required: false },
     isQualified: { type: Boolean, required: false, default: false },
+    firstName: { type: String, required: false },
+    lastName: { type: String, required: false },
+    firstPersonalEmail: { type: String, required: false },
+    personalEmails: [{ type: String, required: false }],
+    phones: [{ type: String, required: false }],
+    apolloEnrichmentAttempted: { type: Boolean, required: false, default: false },
   },
   {
     timestamps: true,

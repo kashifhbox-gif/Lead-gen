@@ -44,4 +44,23 @@ export class ApifyService {
   async getDatasetItems(runId: string) {
     return await this.client.run(runId).dataset().listItems();
   }
+
+  /**
+   * Starts the Personal Email Finder actor
+   */
+  async startEmailFinder(profileUrls: string[], webhookUrl: string) {
+    return await this.client.actor('code_crafter/personal-email-finder').start(
+      {
+        linkedin_url: profileUrls
+      },
+      {
+        webhooks: [
+          {
+            eventTypes: ['ACTOR.RUN.SUCCEEDED'],
+            requestUrl: webhookUrl,
+          },
+        ],
+      }
+    );
+  }
 }

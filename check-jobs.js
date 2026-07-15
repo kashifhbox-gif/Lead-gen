@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
 
-async function check() {
-  await mongoose.connect(process.env.MONGODB_URI);
+const envFile = fs.readFileSync(path.join(process.cwd(), '.env'), 'utf-8');
+const match = envFile.match(/MONGODB_URI=([^\n\r]+)/);
+const uri = match ? match[1].trim().replace(/^"|"$/g, '') : null;
+
+mongoose.connect(uri).then(async () => {
   const db = mongoose.connection.db;
-  const jobs = await db.collection('jobs').find({}).toArray();
-  console.log(jobs.map(j => ({ id: j._id, q: j.searchQuery, s: j.status })));
-  process.exit(0);
-}
-check();
+  const jobs = await db.collection('jobs').find({}).sort({createdAt: -1}).limit(5).toArray();
+  console.log("Recent Jobs:");
+  jobs.forEach(j => console.log(`- ID: ${j._id}, Status: ${j.status}, EmailStatus: ${j.emailEnrichmentStatus}`));
+  mongoose.disconnect();
+});

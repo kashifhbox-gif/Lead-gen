@@ -33,6 +33,7 @@ export class SettingsService {
     if (updates.apifyApiKey !== undefined) updateData.apifyApiKey = updates.apifyApiKey;
     if (updates.geminiApiKey !== undefined) updateData.geminiApiKey = updates.geminiApiKey;
     if (updates.geminiModel !== undefined) updateData.geminiModel = updates.geminiModel;
+    if (updates.apolloApiKey !== undefined) updateData.apolloApiKey = updates.apolloApiKey;
 
     const user = await User.findOneAndUpdate(
       { email },

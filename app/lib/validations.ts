@@ -13,6 +13,7 @@ export const SettingsUpdateSchema = z.object({
   apifyApiKey: z.string().optional(),
   geminiApiKey: z.string().optional(),
   geminiModel: z.string().optional(),
+  apolloApiKey: z.string().optional(),
   aiPrompt: z.string().min(10, 'Prompt must be at least 10 characters').optional(),
 });
 

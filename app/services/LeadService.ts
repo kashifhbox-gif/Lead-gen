@@ -94,6 +94,27 @@ export class LeadService {
       const profileUrl = item.author?.linkedinUrl || item.authorProfileUrl || item.authorUrl || '';
       const postUrl = item.linkedinUrl || item.url || item.postUrl || '';
 
+      // Extract emails
+      const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+      const emailsFound = postText.match(emailRegex) || [];
+      const uniqueEmails = Array.from(new Set(emailsFound.map((e: string) => e.toLowerCase())));
+
+      // Extract phone numbers (Basic international/local regex)
+      const phoneRegex = /(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/g;
+      const phonesFound = postText.match(phoneRegex) || [];
+      const validPhones = phonesFound.map((p: string) => p.trim()).filter((p: string) => p.replace(/\D/g, '').length >= 10);
+      const uniquePhones = Array.from(new Set(validPhones));
+      
+      let firstName = undefined;
+      let lastName = undefined;
+      const nameParts = authorName.trim().split(' ');
+      if (nameParts.length > 1) {
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ');
+      } else if (nameParts.length === 1 && nameParts[0]) {
+        firstName = nameParts[0];
+      }
+
       return {
         jobId,
         searchQuery,
@@ -106,6 +127,11 @@ export class LeadService {
           comments: commentsCount,
           shares: sharesCount,
         },
+        firstName,
+        lastName,
+        firstPersonalEmail: uniqueEmails[0] || undefined,
+        allEmails: uniqueEmails,
+        phones: uniquePhones,
         isQualified: false, // Default to false until AI evaluates
       };
     }).filter((l: any) => l.postContent.trim() !== `Author:  ()\n\n`);
