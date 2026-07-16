@@ -6,6 +6,7 @@ export interface IJob extends Document {
   status: 'PENDING' | 'SCRAPING' | 'SCRAPED' | 'EVALUATING' | 'COMPLETED' | 'FAILED';
   emailEnrichmentStatus?: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   emailEnrichmentRunId?: string;
+  totalEnrichmentTarget?: number;
   filters?: {
     postedLimit?: string;
     postedLimitDate?: string;
@@ -31,6 +32,7 @@ const JobSchema: Schema = new Schema(
       default: 'IDLE',
     },
     emailEnrichmentRunId: { type: String, required: false },
+    totalEnrichmentTarget: { type: Number, required: false },
     filters: {
       postedLimit: { type: String, required: false },
       postedLimitDate: { type: String, required: false },

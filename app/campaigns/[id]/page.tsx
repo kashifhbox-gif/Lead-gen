@@ -17,6 +17,11 @@ interface Lead {
     likes?: number;
     comments?: number;
   };
+  firstPersonalEmail?: string;
+  phones?: string[];
+  apolloEmailEnrichmentRequested?: boolean;
+  apolloPhoneEnrichmentRequested?: boolean;
+  apolloEnrichmentAttempted?: boolean;
   score?: number;
   aiReasoning?: string;
   isQualified?: boolean;
@@ -28,6 +33,7 @@ interface Job {
   profileUrl?: string;
   status: string;
   emailEnrichmentStatus?: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  totalEnrichmentTarget?: number;
   createdAt: string;
 }
 
@@ -39,7 +45,7 @@ export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalLeads: 0, globalTotalLeads: 0, qualifiedLeads: 0, evaluatedLeads: 0 });
+  const [stats, setStats] = useState({ totalLeads: 0, globalTotalLeads: 0, qualifiedLeads: 0, evaluatedLeads: 0, completedEnrichment: 0 });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('ALL'); // ALL, QUALIFIED, REJECTED, PENDING
@@ -99,6 +105,21 @@ export default function JobDetailsPage() {
     }
   };
 
+  const handleSingleEnrich = async (leadId: string) => {
+    try {
+      // Optimistically update UI
+      setLeads(current => current.map(l => l._id === leadId ? {
+        ...l,
+        apolloPhoneEnrichmentRequested: true,
+        apolloEmailEnrichmentRequested: true
+      } : l));
+
+      await fetch(`/api/leads/${leadId}/enrich`, { method: 'POST' });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'COMPLETED': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -142,7 +163,7 @@ export default function JobDetailsPage() {
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm font-medium">Back to Campaigns</span>
         </Link>
-        <button 
+        <button
           onClick={() => {
             setDeleteCampaignModalOpen(true);
           }}
@@ -173,12 +194,37 @@ export default function JobDetailsPage() {
             <p className="text-sm text-neutral-400 mb-1">Leads Scraped</p>
             <p className="text-2xl font-semibold text-white">{totalCount}</p>
           </div>
-          <div>
-            <p className="text-sm text-neutral-400 mb-1">AI Evaluated</p>
-            <p className="text-2xl font-semibold text-indigo-400">
-              {evaluatedCount} <span className="text-sm font-normal text-neutral-500">/ {totalCount}</span>
-            </p>
+          <div className="flex-1 max-w-md">
+            <div className="flex justify-between items-end mb-1">
+              <p className="text-sm text-neutral-400">AI Evaluated</p>
+              <p className="text-sm font-semibold text-indigo-400">
+                {evaluatedCount} <span className="text-neutral-500 font-normal">/ {totalCount}</span>
+              </p>
+            </div>
+            <div className="w-full bg-black/40 rounded-full h-2 border border-white/5 overflow-hidden">
+              <div
+                className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${totalCount > 0 ? (evaluatedCount / totalCount) * 100 : 0}%` }}
+              />
+            </div>
           </div>
+
+          {((job.totalEnrichmentTarget || 0) > 0 || (job.emailEnrichmentStatus && job.emailEnrichmentStatus !== 'IDLE')) && (
+            <div className="flex-1 max-w-md">
+              <div className="flex justify-between items-end mb-1">
+                <p className="text-sm text-neutral-400">Quliafied Contact Info Enriched</p>
+                <p className="text-sm font-semibold text-emerald-400">
+                  {stats.completedEnrichment || 0} <span className="text-neutral-500 font-normal">/ {job.totalEnrichmentTarget || stats.qualifiedLeads}</span>
+                </p>
+              </div>
+              <div className="w-full bg-black/40 rounded-full h-2 border border-white/5 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${(stats.completedEnrichment || 0) / (job.totalEnrichmentTarget || stats.qualifiedLeads || 1) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -192,7 +238,7 @@ export default function JobDetailsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4 flex-wrap">
           <h2 className="text-lg font-semibold text-white">Scraped Leads ({stats.totalLeads})</h2>
-          <a 
+          <a
             href={`/api/export-leads?jobId=${jobId}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -201,41 +247,41 @@ export default function JobDetailsPage() {
             <Download className="w-4 h-4" />
             Export Qualified
           </a>
-          {job?.emailEnrichmentStatus !== 'RUNNING' && job?.emailEnrichmentStatus !== 'COMPLETED' && (
-            <button 
+          {/* {job?.status === 'COMPLETED' && !job.totalEnrichmentTarget && stats.qualifiedLeads > 0 && (!job?.emailEnrichmentStatus || job?.emailEnrichmentStatus === 'IDLE' || job?.emailEnrichmentStatus === 'FAILED') && (
+            <button
               onClick={handleEnrichEmails}
               disabled={enriching}
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
               {enriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              Find Emails for Qualified Leads
+              Find Contact Info for Qualified Leads
             </button>
-          )}
-          {job?.emailEnrichmentStatus === 'RUNNING' && (
+          )} */}
+          {/* {(job?.emailEnrichmentStatus === 'RUNNING' || (job?.emailEnrichmentStatus === 'COMPLETED' && (stats.completedEnrichment || 0) < (job.totalEnrichmentTarget || stats.qualifiedLeads))) && (
             <span className="text-sm text-yellow-500 font-medium flex items-center gap-1">
-               Running...
+              <Loader2 className="w-4 h-4 animate-spin" /> Fetching Contact Info...
             </span>
-          )}
-          {job?.emailEnrichmentStatus === 'COMPLETED' && (
+          )} */}
+          {job?.emailEnrichmentStatus === 'COMPLETED' && (stats.completedEnrichment || 0) >= (job.totalEnrichmentTarget || stats.qualifiedLeads) && (job.totalEnrichmentTarget || stats.qualifiedLeads) > 0 && (
             <span className="text-sm text-emerald-400 font-medium flex items-center gap-1">
-               <CheckCircle2 className="w-4 h-4" /> Complete
+              <CheckCircle2 className="w-4 h-4" /> Enrichment Complete
             </span>
           )}
           {job?.emailEnrichmentStatus === 'FAILED' && (
             <span className="text-sm text-red-400 font-medium flex items-center gap-1">
-               <XCircle className="w-4 h-4" /> Failed
+              <XCircle className="w-4 h-4" /> Failed
             </span>
           )}
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <input 
-            type="text" 
-            placeholder="Search leads..." 
+          <input
+            type="text"
+            placeholder="Search leads..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-indigo-500 w-full sm:w-64 transition-colors"
           />
-          <select 
+          <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="px-4 py-2 bg-[#0A0A0A] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
@@ -258,28 +304,30 @@ export default function JobDetailsPage() {
             <table className="w-full text-sm text-left text-neutral-400">
               <thead className="text-xs text-neutral-500 uppercase bg-black/40 border-b border-white/5">
                 <tr>
-                  <th className="px-6 py-4 font-medium whitespace-nowrap">Profile</th>
-                  <th className="px-6 py-4 font-medium w-2/5">Post Preview</th>
-                  <th className="px-6 py-4 font-medium whitespace-nowrap">Engagement</th>
-                  <th className="px-6 py-4 font-medium whitespace-nowrap">AI Score</th>
-                  <th className="px-6 py-4 font-medium whitespace-nowrap">Status</th>
-                  <th className="px-6 py-4 font-medium text-right whitespace-nowrap">Actions</th>
+                  <th className="px-4 py-4 font-medium whitespace-nowrap">Profile</th>
+                  <th className="px-4 py-4 font-medium whitespace-nowrap">Phone number</th>
+                  <th className="px-4 py-4 font-medium whitespace-nowrap">Email address</th>
+                  <th className="px-4 py-4 font-medium whitespace-nowrap">AI Score</th>
+                  <th className="px-4 py-4 font-medium whitespace-nowrap">Status</th>
+                  <th className="px-4 py-4 font-medium text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredLeads.map((lead) => (
-                  <tr 
-                    key={lead._id} 
-                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer" 
+                {filteredLeads.map((lead) => {
+                  const hasBothContactMethods = Boolean(lead.firstPersonalEmail && lead.phones && lead.phones.length > 0);
+                  return (
+                  <tr
+                    key={lead._id}
+                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
                     onClick={() => router.push(`/leads/${lead._id}`)}
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Activity className="w-4 h-4 text-indigo-400 shrink-0" />
-                        <a 
-                          href={lead.profileUrl || '#'} 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href={lead.profileUrl || '#'}
+                          target="_blank"
+                          rel="noreferrer"
                           className="font-medium text-white hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-[150px] inline-block"
                           title={lead.profileUrl}
                         >
@@ -287,18 +335,17 @@ export default function JobDetailsPage() {
                         </a>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="line-clamp-2 text-neutral-300 min-w-[200px]" title={lead.postContent}>
-                        {lead.postContent}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1"><ThumbsUp className="w-3.5 h-3.5 text-neutral-500" /> {lead.engagementStats?.likes || 0}</span>
-                        <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-neutral-500" /> {lead.engagementStats?.comments || 0}</span>
+                    <td className="px-4 py-4">
+                      <div className="text-neutral-300 truncate max-w-[120px]" title={lead.phones?.[0] || ''}>
+                        {lead.phones && lead.phones.length > 0 ? lead.phones[0] : lead.apolloPhoneEnrichmentRequested ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
+                      <div className="text-neutral-300 truncate max-w-[150px]" title={lead.firstPersonalEmail || ''}>
+                        {lead.firstPersonalEmail ? lead.firstPersonalEmail : lead.apolloEmailEnrichmentRequested ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
                       {lead.score !== undefined ? (
                         <div className="flex items-center gap-2">
                           <BrainCircuit className="w-4 h-4 text-indigo-400" />
@@ -308,7 +355,7 @@ export default function JobDetailsPage() {
                         <span className="text-xs text-neutral-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Pending</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       {lead.score === undefined ? (
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">Evaluating</span>
                       ) : lead.isQualified ? (
@@ -317,9 +364,33 @@ export default function JobDetailsPage() {
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button 
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSingleEnrich(lead._id);
+                            }}
+                            className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors"
+                          >
+                            Get Contact Info
+                          </button>
+                        )}
+                        {(lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (
+                          <span className="text-yellow-500 text-sm font-medium flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Fetching
+                          </span>
+                        )}
+                        {!hasBothContactMethods && lead.apolloEnrichmentAttempted && !lead.firstPersonalEmail && (!lead.phones || lead.phones.length === 0) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
+                          <span className="text-neutral-500 text-sm font-medium">Not Found</span>
+                        )}
+                        {(hasBothContactMethods || (lead.apolloEnrichmentAttempted && (lead.firstPersonalEmail || (lead.phones && lead.phones.length > 0)))) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
+                          <span className="text-emerald-500 text-sm font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Done
+                          </span>
+                        )}
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setLeadToDelete(lead._id);
@@ -335,7 +406,7 @@ export default function JobDetailsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
@@ -346,14 +417,14 @@ export default function JobDetailsPage() {
                 Page {currentPage} of {totalPages}
               </div>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1)); }}
                   disabled={currentPage === 1}
                   className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
                 >
                   Previous
                 </button>
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"

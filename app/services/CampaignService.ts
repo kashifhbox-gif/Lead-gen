@@ -102,6 +102,12 @@ export class CampaignService {
       globalTotalLeads: await Lead.countDocuments({ jobId }),
       qualifiedLeads: await Lead.countDocuments({ jobId, isQualified: true }),
       evaluatedLeads: await Lead.countDocuments({ jobId, score: { $exists: true } }),
+      completedEnrichment: await Lead.countDocuments({ 
+        jobId, 
+        apolloEnrichmentAttempted: true, 
+        apolloEmailEnrichmentRequested: false, 
+        apolloPhoneEnrichmentRequested: false 
+      }),
     };
 
     return { 

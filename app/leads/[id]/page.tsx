@@ -45,7 +45,6 @@ export default function LeadDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [enriching, setEnriching] = useState(false);
-  const [enrichingPhone, setEnrichingPhone] = useState(false);
   const [enrichMessage, setEnrichMessage] = useState('');
   
   const [isEditingContact, setIsEditingContact] = useState(false);
@@ -117,28 +116,6 @@ export default function LeadDetailsPage() {
     }
   };
 
-  const handleEnrichPhone = async () => {
-    setEnrichingPhone(true);
-    setEnrichMessage('');
-    try {
-      const res = await fetch(`/api/leads/${leadId}/enrich-phone`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setEnrichMessage(data.message || 'Phone number fetched successfully!');
-        if (data.lead) {
-          setLead(data.lead);
-        }
-      } else {
-        setEnrichMessage(data.error || data.message || 'Failed to fetch phone number');
-      }
-    } catch (err) {
-      setEnrichMessage('An error occurred while fetching phone number.');
-    } finally {
-      setEnrichingPhone(false);
-      setTimeout(() => setEnrichMessage(''), 5000);
-    }
-  };
-
   useEffect(() => {
     const fetchLeadDetails = async () => {
       try {
@@ -185,24 +162,14 @@ export default function LeadDetailsPage() {
         <div className="flex gap-3">
           {lead?.profileUrl && (
             <>
-              {!lead.firstPersonalEmail && (
+              {(!lead.firstPersonalEmail || !(lead.phones && lead.phones.length > 0)) && (
                 <button 
                   onClick={handleEnrichLead}
-                  disabled={enriching || enrichingPhone || lead.apolloEmailEnrichmentRequested || lead.apolloEnrichmentAttempted}
+                  disabled={enriching || lead.apolloEmailEnrichmentRequested || lead.apolloEnrichmentAttempted}
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {enriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                  {enriching ? 'Processing...' : (lead.apolloEmailEnrichmentRequested || lead.apolloEnrichmentAttempted) ? 'Email Not Found' : 'Find Email'}
-                </button>
-              )}
-              {!(lead.phones && lead.phones.length > 0) && (
-                <button 
-                  onClick={handleEnrichPhone}
-                  disabled={enrichingPhone || enriching || lead.apolloPhoneEnrichmentRequested}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  {(enrichingPhone || lead.apolloPhoneEnrichmentRequested) ? <Loader2 className="w-4 h-4 animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>}
-                  {(enrichingPhone || lead.apolloPhoneEnrichmentRequested) ? 'Processing...' : 'Find Phone'}
+                  {enriching ? 'Processing...' : (lead.apolloEmailEnrichmentRequested || lead.apolloEnrichmentAttempted) ? 'Searched' : 'Find Contact Info'}
                 </button>
               )}
             </>
@@ -354,6 +321,7 @@ export default function LeadDetailsPage() {
             </div>
             
             {isEditingContact ? (
+              // ... keeping edit form same ...
               <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-xl border border-white/5">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -421,6 +389,14 @@ export default function LeadDetailsPage() {
                 <div className="text-emerald-300 font-medium text-lg flex items-center gap-2">
                   {lead.firstPersonalEmail}
                 </div>
+              ) : lead.apolloEmailEnrichmentRequested ? (
+                <div className="mt-2 text-sm text-emerald-400/80 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Searching Apollo for email...
+                </div>
+              ) : lead.apolloEnrichmentAttempted ? (
+                <div className="text-red-400/80 font-medium text-sm mt-1">
+                  Email Not Found
+                </div>
               ) : (
                 <div className="text-neutral-500 italic text-sm mt-1">
                   No email address available.
@@ -436,7 +412,7 @@ export default function LeadDetailsPage() {
                   </ul>
                 </div>
               )}
-              {lead.phones && lead.phones.length > 0 && (
+              {lead.phones && lead.phones.length > 0 ? (
                 <div className="mt-2 text-sm text-neutral-400">
                   <p className="mb-1 font-medium text-neutral-500 uppercase tracking-wider text-xs">Phone Numbers:</p>
                   <ul className="list-disc list-inside">
@@ -445,7 +421,15 @@ export default function LeadDetailsPage() {
                     ))}
                   </ul>
                 </div>
-              )}
+              ) : lead.apolloPhoneEnrichmentRequested ? (
+                <div className="mt-2 text-sm text-emerald-400/80 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Searching Apollo for phone...
+                </div>
+              ) : lead.apolloEnrichmentAttempted ? (
+                <div className="mt-2 text-sm text-red-400/80 font-medium">
+                  Phone Not Found
+                </div>
+              ) : null}
             </div>
             )}
           </div>

@@ -171,20 +171,23 @@ function KPICard({ title, value, icon, color }: { title: string, value: string |
 function StatusBadge({ status }: { status: string }) {
   let colorClass = 'bg-neutral-500/10 text-neutral-400 border-neutral-500/20';
   let label = status;
+  let icon = null;
 
   if (status === 'COMPLETED') {
     colorClass = 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.3)]';
     label = 'Completed';
   } else if (status === 'SCRAPING' || status === 'EVALUATING' || status === 'SCRAPED') {
     colorClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.3)]';
-    label = 'Active';
+    label = status;
+    icon = <Loader2 className="w-3 h-3 animate-spin mr-1.5 inline-block" />;
   } else if (status === 'FAILED') {
     colorClass = 'bg-red-500/20 text-red-300 border-red-500/30';
     label = 'Failed';
   }
 
   return (
-    <span className={`px-3 py-1 text-xs font-medium rounded-full border ${colorClass} backdrop-blur-md`}>
+    <span className={`px-3 py-1 text-xs font-medium rounded-full border ${colorClass} backdrop-blur-md inline-flex items-center`}>
+      {icon}
       {label}
     </span>
   );

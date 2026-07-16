@@ -5,6 +5,7 @@ import { SettingsService } from '@/app/services/SettingsService';
 import { ApolloService } from '@/app/services/ApolloService';
 import fs from 'fs';
 import path from 'path';
+import { inngest } from '@/app/lib/inngest';
 
 export async function POST(
   request: Request,
@@ -50,7 +51,12 @@ export async function POST(
       }
     }
 
-    const apolloData = await apolloService.enrichLead(lead.profileUrl, name);
+    const protocol = request.headers.get('x-forwarded-proto') || 'http';
+    const host = request.headers.get('host');
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+    const webhookUrl = `${baseUrl}/api/webhooks/apollo-phone?leadId=${lead._id}`;
+    
+    const apolloData = await apolloService.enrichLead(lead.profileUrl, name, webhookUrl);
     
     if (apolloData && apolloData.person) {
       const person = apolloData.person;
@@ -69,8 +75,17 @@ export async function POST(
       lead.phones = phoneNumbers;
       lead.apolloEnrichmentAttempted = true;
       lead.apolloEmailEnrichmentRequested = true;
+      lead.apolloPhoneEnrichmentRequested = phoneNumbers.length === 0;
 
       await lead.save();
+
+      if (phoneNumbers.length === 0) {
+        // Trigger a timeout event in case Apollo never sends a webhook
+        await inngest.send({
+          name: "app/enrich.phone.timeout",
+          data: { leadId: lead._id.toString() },
+        });
+      }
 
       const hasContactInfo = emails.length > 0 || phoneNumbers.length > 0;
 
@@ -81,7 +96,14 @@ export async function POST(
     } else {
       lead.apolloEnrichmentAttempted = true;
       lead.apolloEmailEnrichmentRequested = true;
+      lead.apolloPhoneEnrichmentRequested = true;
       await lead.save();
+
+      // Trigger a timeout event in case Apollo never sends a webhook
+      await inngest.send({
+        name: "app/enrich.phone.timeout",
+        data: { leadId: lead._id.toString() },
+      });
 
       return NextResponse.json({ 
         message: 'Apollo request succeeded but no person match found for this profile.', 

@@ -16,6 +16,10 @@ interface Lead {
     comments?: number;
     shares?: number;
   };
+  firstPersonalEmail?: string;
+  phones?: string[];
+  apolloEmailEnrichmentRequested?: boolean;
+  apolloPhoneEnrichmentRequested?: boolean;
   score: number;
   aiReasoning: string;
   createdAt: string;
@@ -97,8 +101,8 @@ export default function LeadsPage() {
               <thead className="text-xs text-neutral-500 uppercase bg-black/40 border-b border-white/5">
                 <tr>
                   <th className="px-6 py-4 font-medium whitespace-nowrap">Profile</th>
-                  <th className="px-6 py-4 font-medium w-2/5">Post Preview</th>
-                  <th className="px-6 py-4 font-medium whitespace-nowrap">Engagement</th>
+                  <th className="px-6 py-4 font-medium whitespace-nowrap">Phone number</th>
+                  <th className="px-6 py-4 font-medium whitespace-nowrap">Email address</th>
                   <th className="px-6 py-4 font-medium whitespace-nowrap">AI Score</th>
                   <th className="px-6 py-4 font-medium text-right whitespace-nowrap">Actions</th>
                 </tr>
@@ -125,14 +129,13 @@ export default function LeadsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="line-clamp-2 text-neutral-300 min-w-[200px]" title={lead.postContent}>
-                        {lead.postContent}
-                      </p>
+                      <div className="text-neutral-300 truncate max-w-[120px]" title={lead.phones?.[0] || ''}>
+                        {lead.phones && lead.phones.length > 0 ? lead.phones[0] : lead.apolloPhoneEnrichmentRequested ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-neutral-500" /> {lead.engagementStats?.likes || 0}</span>
-                        <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-neutral-500" /> {lead.engagementStats?.comments || 0}</span>
+                      <div className="text-neutral-300 truncate max-w-[150px]" title={lead.firstPersonalEmail || ''}>
+                        {lead.firstPersonalEmail ? lead.firstPersonalEmail : lead.apolloEmailEnrichmentRequested ? <span className="text-red-400/80 text-xs">Not found</span> : <span className="text-neutral-600">-</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4">

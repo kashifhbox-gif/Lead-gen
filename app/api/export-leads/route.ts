@@ -27,33 +27,31 @@ export async function GET(req: NextRequest) {
 
     const headers = [
       'Profile URL',
-      'First Name',
-      'Last Name',
+      'Name',
       'Emails',
-      'AI Score',
+      'Phone Number',
       'AI Reasoning',
       'Outreach Hook',
       'Post Content',
-      'Post URL',
-      'Likes',
-      'Comments',
-      'Created At'
+      'Post URL'
     ];
 
-    const rows = leads.map(lead => [
-      lead.profileUrl || '',
-      lead.firstName || '',
-      lead.lastName || '',
-      lead.personalEmails?.join(', ') || lead.firstPersonalEmail || '',
-      lead.score || '',
-      lead.aiReasoning || '',
-      lead.outreachHook || '',
-      lead.postContent || '',
-      lead.postUrl || '',
-      lead.engagementStats?.likes || 0,
-      lead.engagementStats?.comments || 0,
-      new Date(lead.createdAt).toISOString()
-    ]);
+    const rows = leads.map(lead => {
+      const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Unknown';
+      const emails = lead.personalEmails?.length ? lead.personalEmails.join(', ') : lead.firstPersonalEmail || 'Not Found';
+      const phones = lead.phones?.length ? lead.phones.join(', ') : 'Not Found';
+
+      return [
+        lead.profileUrl || '',
+        name,
+        emails,
+        phones,
+        lead.aiReasoning || '',
+        lead.outreachHook || '',
+        lead.postContent || '',
+        lead.postUrl || ''
+      ];
+    });
 
     const csvContent = [
       headers.map(escapeCSV).join(','),

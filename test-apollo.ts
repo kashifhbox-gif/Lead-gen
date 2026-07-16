@@ -29,11 +29,11 @@ async function runTest() {
     await mongoose.connect(process.env.MONGODB_URI as string);
     console.log('Connected.');
 
-    // Find 5 qualified leads that have a LinkedIn URL
+    // Find 10 qualified leads that have a LinkedIn URL
     const leads = await Lead.find({ 
       isQualified: true, 
       profileUrl: { $exists: true, $ne: null } 
-    }).limit(5);
+    }).limit(10);
 
     if (leads.length === 0) {
       console.log('No qualified leads found to test.');
@@ -58,7 +58,8 @@ async function runTest() {
       console.log(`       Fetching from Apollo...`);
 
       try {
-        const result = await apolloService.enrichLead(lead.profileUrl, name);
+        const dummyWebhook = 'https://sacrifice-palm-compost.ngrok-free.dev/api/webhooks/apollo-phone?leadId=' + lead._id;
+        const result = await apolloService.enrichLead(lead.profileUrl, name, dummyWebhook);
         if (result && result.person) {
           const person = result.person;
           const emails = [];
