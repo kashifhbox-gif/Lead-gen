@@ -24,6 +24,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -32,7 +33,7 @@ export default function JobsPage() {
 
   const fetchJobs = async () => {
     try {
-      const res = await fetch(`/api/campaigns?page=${page}&limit=${limit}`);
+      const res = await fetch(`/api/campaigns?page=${page}&limit=${limit}&tab=${activeTab}`);
       const data = await res.json();
       if (data.jobs) setJobs(data.jobs);
       if (data.pagination) {
@@ -50,7 +51,11 @@ export default function JobsPage() {
     fetchJobs();
     const interval = setInterval(fetchJobs, 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, [page]);
+  }, [page, activeTab]);
+
+  useEffect(() => {
+    setPage(1); // Reset page on tab change
+  }, [activeTab]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -72,13 +77,13 @@ export default function JobsPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
           <Activity className="w-5 h-5 text-indigo-400" />
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
-            Active Campaigns
+            Campaigns
             {totalCount > 0 && (
               <span className="text-sm font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 {totalCount} Total
@@ -87,6 +92,29 @@ export default function JobsPage() {
           </h1>
           <p className="text-sm text-neutral-400 mt-1">Monitor your scraping and AI evaluation queues.</p>
         </div>
+      </div>
+
+      <div className="flex border-b border-white/10 mb-6 gap-6">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'active' 
+              ? 'border-indigo-500 text-indigo-400' 
+              : 'border-transparent text-neutral-400 hover:text-white'
+          }`}
+        >
+          Active Campaigns
+        </button>
+        <button
+          onClick={() => setActiveTab('completed')}
+          className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'completed' 
+              ? 'border-indigo-500 text-indigo-400' 
+              : 'border-transparent text-neutral-400 hover:text-white'
+          }`}
+        >
+          Completed Campaigns
+        </button>
       </div>
 
       <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden backdrop-blur-xl">

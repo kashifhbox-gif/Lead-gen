@@ -46,7 +46,7 @@ export class LeadService {
    */
   static async getLeadDetails(leadId: string) {
     await connectToDatabase();
-    const lead = await Lead.findById(leadId).populate('jobId', 'searchQuery profileUrl status').lean();
+    const lead = await Lead.findById(leadId).populate('jobId', 'searchQuery profileUrl status emailEnrichmentStatus totalEnrichmentTarget').lean();
     
     if (!lead) {
       throw new Error('Lead not found');

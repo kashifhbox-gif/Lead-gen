@@ -27,13 +27,26 @@ export class CampaignService {
   /**
    * Fetches paginated campaigns with their lead statistics
    */
-  static async getCampaignsPaginated(page: number = 1, limit: number = 20) {
+  static async getCampaignsPaginated(page: number = 1, limit: number = 20, tab: string = 'active') {
     await connectToDatabase();
     const skip = (page - 1) * limit;
 
+    const query: any = {};
+    if (tab === 'completed') {
+      query.$and = [
+        { status: { $in: ['COMPLETED', 'FAILED'] } },
+        { emailEnrichmentStatus: { $nin: ['RUNNING'] } }
+      ];
+    } else {
+      query.$or = [
+        { status: { $nin: ['COMPLETED', 'FAILED'] } },
+        { emailEnrichmentStatus: 'RUNNING' }
+      ];
+    }
+
     const [jobs, totalCount] = await Promise.all([
-      Job.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Job.countDocuments()
+      Job.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Job.countDocuments(query)
     ]);
     
     const jobsWithStats = await Promise.all(
@@ -106,7 +119,35 @@ export class CampaignService {
         jobId, 
         apolloEnrichmentAttempted: true, 
         apolloEmailEnrichmentRequested: false, 
-        apolloPhoneEnrichmentRequested: false 
+        apolloPhoneEnrichmentRequested: false,
+        $or: [
+          { firstPersonalEmail: { $exists: true } },
+          { phones: { $not: { $size: 0 } } }
+        ]
+      }),
+      failedEnrichment: await Lead.countDocuments({ 
+        jobId, 
+        apolloEnrichmentAttempted: true, 
+        apolloEmailEnrichmentRequested: false, 
+        apolloPhoneEnrichmentRequested: false,
+        firstPersonalEmail: { $exists: false },
+        phones: { $size: 0 }
+      }),
+      pendingEnrichment: await Lead.countDocuments({
+        jobId,
+        $or: [
+          { apolloEmailEnrichmentRequested: true },
+          { apolloPhoneEnrichmentRequested: true }
+        ],
+        apolloEnrichmentRequestedAt: { $gte: new Date(Date.now() - 15 * 60 * 1000) }
+      }),
+      timedOutEnrichment: await Lead.countDocuments({
+        jobId,
+        $or: [
+          { apolloEmailEnrichmentRequested: true },
+          { apolloPhoneEnrichmentRequested: true }
+        ],
+        apolloEnrichmentRequestedAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) }
       }),
     };
 

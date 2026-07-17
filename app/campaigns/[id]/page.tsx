@@ -22,6 +22,7 @@ interface Lead {
   apolloEmailEnrichmentRequested?: boolean;
   apolloPhoneEnrichmentRequested?: boolean;
   apolloEnrichmentAttempted?: boolean;
+  apolloEnrichmentRequestedAt?: string | Date;
   score?: number;
   aiReasoning?: string;
   isQualified?: boolean;
@@ -45,7 +46,7 @@ export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalLeads: 0, globalTotalLeads: 0, qualifiedLeads: 0, evaluatedLeads: 0, completedEnrichment: 0 });
+  const [stats, setStats] = useState({ totalLeads: 0, globalTotalLeads: 0, qualifiedLeads: 0, evaluatedLeads: 0, completedEnrichment: 0, failedEnrichment: 0, pendingEnrichment: 0, timedOutEnrichment: 0 });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('ALL'); // ALL, QUALIFIED, REJECTED, PENDING
@@ -210,18 +211,23 @@ export default function JobDetailsPage() {
           </div>
 
           {((job.totalEnrichmentTarget || 0) > 0 || (job.emailEnrichmentStatus && job.emailEnrichmentStatus !== 'IDLE')) && (
-            <div className="flex-1 max-w-md">
-              <div className="flex justify-between items-end mb-1">
-                <p className="text-sm text-neutral-400">Quliafied Contact Info Enriched</p>
-                <p className="text-sm font-semibold text-emerald-400">
-                  {stats.completedEnrichment || 0} <span className="text-neutral-500 font-normal">/ {job.totalEnrichmentTarget || stats.qualifiedLeads}</span>
-                </p>
-              </div>
-              <div className="w-full bg-black/40 rounded-full h-2 border border-white/5 overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(stats.completedEnrichment || 0) / (job.totalEnrichmentTarget || stats.qualifiedLeads || 1) * 100}%` }}
-                />
+            <div className="flex-1 max-w-md flex flex-col gap-2">
+              <p className="text-sm text-neutral-400">Automated Contact Info Enrichment</p>
+              <div className="flex items-center gap-4">
+                {(stats.pendingEnrichment || 0) > 0 && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm font-medium">{stats.pendingEnrichment} Pending</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-sm font-medium">{stats.completedEnrichment || 0} Success</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                  <XCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">{(stats.failedEnrichment || 0) + (stats.timedOutEnrichment || 0)} Failed</span>
+                </div>
               </div>
             </div>
           )}
@@ -262,14 +268,9 @@ export default function JobDetailsPage() {
               <Loader2 className="w-4 h-4 animate-spin" /> Fetching Contact Info...
             </span>
           )} */}
-          {job?.emailEnrichmentStatus === 'COMPLETED' && (stats.completedEnrichment || 0) >= (job.totalEnrichmentTarget || stats.qualifiedLeads) && (job.totalEnrichmentTarget || stats.qualifiedLeads) > 0 && (
+          {job?.emailEnrichmentStatus === 'COMPLETED' && stats.pendingEnrichment === 0 && (job.totalEnrichmentTarget || stats.qualifiedLeads) > 0 && (
             <span className="text-sm text-emerald-400 font-medium flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Enrichment Complete
-            </span>
-          )}
-          {job?.emailEnrichmentStatus === 'FAILED' && (
-            <span className="text-sm text-red-400 font-medium flex items-center gap-1">
-              <XCircle className="w-4 h-4" /> Failed
+              <CheckCircle2 className="w-4 h-4" /> Automated Enrichment Finished
             </span>
           )}
         </div>
@@ -315,6 +316,8 @@ export default function JobDetailsPage() {
               <tbody className="divide-y divide-white/5">
                 {filteredLeads.map((lead) => {
                   const hasBothContactMethods = Boolean(lead.firstPersonalEmail && lead.phones && lead.phones.length > 0);
+                  const isAutomationFinished = (job?.status === 'COMPLETED' || job?.status === 'FAILED') && (job?.emailEnrichmentStatus === 'COMPLETED' || job?.emailEnrichmentStatus === 'FAILED' || stats.qualifiedLeads === 0);
+                  const isAutomationActive = !isAutomationFinished;
                   return (
                   <tr
                     key={lead._id}
@@ -337,18 +340,17 @@ export default function JobDetailsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-neutral-300 truncate max-w-[120px]" title={lead.phones?.[0] || ''}>
-                        {lead.phones && lead.phones.length > 0 ? lead.phones[0] : lead.apolloPhoneEnrichmentRequested ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
+                        {lead.phones && lead.phones.length > 0 ? lead.phones[0] : (lead.apolloPhoneEnrichmentRequested && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000))) ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
                       </div>
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-neutral-300 truncate max-w-[150px]" title={lead.firstPersonalEmail || ''}>
-                        {lead.firstPersonalEmail ? lead.firstPersonalEmail : lead.apolloEmailEnrichmentRequested ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
+                        {lead.firstPersonalEmail ? lead.firstPersonalEmail : (lead.apolloEmailEnrichmentRequested && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000))) ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
                       </div>
                     </td>
                     <td className="px-4 py-4">
                       {lead.score !== undefined ? (
                         <div className="flex items-center gap-2">
-                          <BrainCircuit className="w-4 h-4 text-indigo-400" />
                           <span className="font-semibold text-white">{lead.score}/10</span>
                         </div>
                       ) : (
@@ -366,7 +368,7 @@ export default function JobDetailsPage() {
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && (
+                        {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && !isAutomationActive && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -377,13 +379,37 @@ export default function JobDetailsPage() {
                             {lead.firstPersonalEmail ? 'Find Phone' : 'Get Contact Info'}
                           </button>
                         )}
-                        {(lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (
+                        {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && isAutomationActive && (
+                          <span className="text-neutral-500 text-sm font-medium flex items-center gap-1" title="Waiting for automated enrichment batch">
+                            <Clock className="w-3 h-3" /> Queued
+                          </span>
+                        )}
+                        {(lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000)) && (
                           <span className="text-yellow-500 text-sm font-medium flex items-center gap-1">
                             <Loader2 className="w-3 h-3 animate-spin" /> Fetching
                           </span>
                         )}
+                        {((lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (lead.apolloEnrichmentRequestedAt && (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() >= 15 * 60 * 1000))) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSingleEnrich(lead._id);
+                            }}
+                            className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors flex items-center gap-1"
+                          >
+                            <XCircle className="w-3 h-3" /> Retry
+                          </button>
+                        )}
                         {!hasBothContactMethods && lead.apolloEnrichmentAttempted && !lead.firstPersonalEmail && (!lead.phones || lead.phones.length === 0) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
-                          <span className="text-neutral-500 text-sm font-medium">Not Found</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSingleEnrich(lead._id);
+                            }}
+                            className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors flex items-center gap-1"
+                          >
+                            <XCircle className="w-3 h-3" /> Retry
+                          </button>
                         )}
                         {(hasBothContactMethods || (lead.apolloEnrichmentAttempted && (lead.firstPersonalEmail || (lead.phones && lead.phones.length > 0)))) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
                           <span className="text-emerald-500 text-sm font-medium flex items-center gap-1">

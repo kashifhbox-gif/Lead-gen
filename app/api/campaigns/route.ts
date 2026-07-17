@@ -9,8 +9,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const tab = searchParams.get('tab') || 'active';
 
-    const result = await CampaignService.getCampaignsPaginated(page, limit);
+    const result = await CampaignService.getCampaignsPaginated(page, limit, tab);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -70,28 +70,21 @@ export async function POST(
 
       const wasUnattempted = !lead.apolloEnrichmentAttempted;
 
-      lead.firstPersonalEmail = emails[0] || undefined;
-      lead.allEmails = Array.from(new Set(emails));
+      lead.firstPersonalEmail = emails[0] || lead.firstPersonalEmail;
+      lead.allEmails = Array.from(new Set([...(lead.allEmails || []), ...emails]));
       lead.firstName = person.first_name || lead.firstName;
       lead.lastName = person.last_name || lead.lastName;
-      lead.phones = phoneNumbers;
+      lead.phones = Array.from(new Set([...(lead.phones || []), ...phoneNumbers]));
       lead.apolloEnrichmentAttempted = true;
       lead.apolloEmailEnrichmentRequested = true;
       lead.apolloPhoneEnrichmentRequested = phoneNumbers.length === 0;
+      lead.apolloEnrichmentRequestedAt = new Date();
 
       await lead.save();
 
       if (wasUnattempted) {
         const Job = require('@/app/models/Job').default;
         await Job.findByIdAndUpdate(lead.jobId, { $inc: { totalEnrichmentTarget: 1 } });
-      }
-
-      if (phoneNumbers.length === 0) {
-        // Trigger a timeout event in case Apollo never sends a webhook
-        await inngest.send({
-          name: "app/enrich.job.timeout",
-          data: { jobId: lead.jobId.toString() },
-        });
       }
 
       const hasContactInfo = emails.length > 0 || phoneNumbers.length > 0;
@@ -106,18 +99,13 @@ export async function POST(
       lead.apolloEnrichmentAttempted = true;
       lead.apolloEmailEnrichmentRequested = true;
       lead.apolloPhoneEnrichmentRequested = true;
+      lead.apolloEnrichmentRequestedAt = new Date();
       await lead.save();
 
       if (wasUnattempted) {
         const Job = require('@/app/models/Job').default;
         await Job.findByIdAndUpdate(lead.jobId, { $inc: { totalEnrichmentTarget: 1 } });
       }
-
-      // Trigger a timeout event in case Apollo never sends a webhook
-      await inngest.send({
-        name: "app/enrich.job.timeout",
-        data: { jobId: lead.jobId.toString() },
-      });
 
       return NextResponse.json({ 
         message: 'Apollo request succeeded but no person match found for this profile.', 
