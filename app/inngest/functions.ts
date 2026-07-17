@@ -51,12 +51,19 @@ export const evaluateLeads = inngest.createFunction(
           const aiResult = await aiService.evaluateLead(lead.postContent, lead.searchQuery);
           const score = aiResult.score || 0;
 
-          await LeadService.updateLead(lead._id, {
+          const updateData: any = {
             score: score,
             aiReasoning: aiResult.reasoning || "No reasoning provided.",
             outreachHook: aiResult.outreachHook || "",
             isQualified: score >= 7
-          });
+          };
+
+          if (aiResult.extractedEmail) {
+            updateData.firstPersonalEmail = aiResult.extractedEmail;
+            updateData.allEmails = [aiResult.extractedEmail];
+          }
+
+          await LeadService.updateLead(lead._id, updateData);
 
           return score >= 7;
       });
@@ -73,12 +80,12 @@ export const evaluateLeads = inngest.createFunction(
     });
 
     // 4. Auto-trigger bulk enrichment if there are qualified leads
-    // if (qualifiedCount > 0) {
-    //   await step.sendEvent("trigger-bulk-enrichment", {
-    //     name: "app/enrich.leads",
-    //     data: { jobId }
-    //   });
-    // }
+    if (qualifiedCount > 0) {
+      await step.sendEvent("trigger-bulk-enrichment", {
+        name: "app/enrich.leads",
+        data: { jobId }
+      });
+    }
 
     return { message: "Evaluated successfully", processed: leadsToEvaluate.length, qualified: qualifiedCount };
   }
@@ -158,7 +165,8 @@ export const enrichCampaignLeads = inngest.createFunction(
           });
 
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-          const webhookUrl = `${baseUrl}/api/webhooks/apollo`;
+          const leadIdsStr = chunk.map((l: any) => l._id.toString()).join(',');
+          const webhookUrl = `${baseUrl}/api/webhooks/apollo?leadIds=${leadIdsStr}`;
           const apolloData = await apolloService.bulkEnrichLeads(bulkPayload, webhookUrl);
           
           const needsTimeout: string[] = [];
@@ -177,11 +185,11 @@ export const enrichCampaignLeads = inngest.createFunction(
               const phoneNumbers = person.phone_numbers ? person.phone_numbers.map((p: any) => p.sanitized_number) : [];
 
               await LeadService.updateLead(matchedLead._id, {
-                firstPersonalEmail: emails[0] || undefined,
-                allEmails: Array.from(new Set(emails)),
+                firstPersonalEmail: emails[0] || matchedLead.firstPersonalEmail,
+                allEmails: Array.from(new Set([...(matchedLead.allEmails || []), ...emails])),
                 firstName: person.first_name || matchedLead.firstName,
                 lastName: person.last_name || matchedLead.lastName,
-                phones: phoneNumbers,
+                phones: Array.from(new Set([...(matchedLead.phones || []), ...phoneNumbers])),
                 apolloEnrichmentAttempted: true,
                 apolloPhoneEnrichmentRequested: phoneNumbers.length === 0
               });
@@ -212,14 +220,6 @@ export const enrichCampaignLeads = inngest.createFunction(
         }
       });
 
-      if (leadsNeedingTimeout && leadsNeedingTimeout.length > 0) {
-        const events = leadsNeedingTimeout.map((id: string) => ({
-          name: "app/enrich.phone.timeout",
-          data: { leadId: id }
-        }));
-        await step.sendEvent(`trigger-timeouts-chunk-${i}`, events);
-      }
-
       // Sleep slightly to respect rate limits
       await step.sleep(`sleep-apollo-chunk-${i}`, "1s");
     }
@@ -229,30 +229,29 @@ export const enrichCampaignLeads = inngest.createFunction(
       await CampaignService.updateCampaign(jobId, { emailEnrichmentStatus: 'COMPLETED' });
     });
 
+    // 5. Trigger a single job-level timeout to clean up any stuck spinners after 15m
+    await step.sendEvent("trigger-job-timeout", {
+      name: "app/enrich.job.timeout",
+      data: { jobId }
+    });
+
     return { message: "Enrichment completed", processed: leadsToEnrich.length };
   }
 );
 
-export const timeoutApolloPhone = inngest.createFunction(
-  { id: "timeout-apollo-phone", triggers: [{ event: "app/enrich.phone.timeout" }] },
+export const timeoutApolloJob = inngest.createFunction(
+  { id: "timeout-apollo-job", triggers: [{ event: "app/enrich.job.timeout" }] },
   async ({ event, step }) => {
-    const { leadId } = event.data;
+    const { jobId } = event.data;
 
-    // Wait for 15 minutes
-    await step.sleep("wait-for-apollo", "15m");
+    // Wait for 15 minutes for webhooks to arrive
+    await step.sleep("wait-for-apollo-webhooks", "15m");
 
-    // Check if it's still stuck
-    await step.run("timeout-lead", async () => {
-      const lead = await LeadService.getLeadDetails(leadId).catch(() => null);
-      if (lead && (lead.apolloPhoneEnrichmentRequested || lead.apolloEmailEnrichmentRequested)) {
-        // Still true after 15 minutes? That means no webhook arrived. Time it out.
-        await LeadService.updateLead(leadId, { 
-          apolloPhoneEnrichmentRequested: false,
-          apolloEmailEnrichmentRequested: false
-        });
-      }
+    // Clear stuck spinners for all leads in this job
+    await step.run("clear-job-spinners", async () => {
+      await LeadService.clearStuckSpinnersForJob(jobId);
     });
 
-    return { message: "Timeout checked" };
+    return { message: "Job timeouts cleared" };
   }
 );

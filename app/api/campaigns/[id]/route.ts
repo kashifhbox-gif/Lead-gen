@@ -30,10 +30,10 @@ export async function GET(
     
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error fetching job details:', error);
     if (error.message === 'Campaign not found') {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
+    console.error('Error fetching job details:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

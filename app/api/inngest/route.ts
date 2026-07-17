@@ -1,6 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/app/lib/inngest";
-import { evaluateLeads, enrichCampaignLeads, timeoutApolloPhone } from "@/app/inngest/functions";
+import { evaluateLeads, enrichCampaignLeads, timeoutApolloJob } from "@/app/inngest/functions";
 
 // Create an API that serves zero-downtime background jobs
 export const { GET, POST, PUT } = serve({
@@ -8,6 +8,6 @@ export const { GET, POST, PUT } = serve({
   functions: [
     evaluateLeads,
     enrichCampaignLeads,
-    timeoutApolloPhone,
+    timeoutApolloJob,
   ],
 });

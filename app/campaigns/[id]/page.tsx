@@ -374,7 +374,7 @@ export default function JobDetailsPage() {
                             }}
                             className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors"
                           >
-                            Get Contact Info
+                            {lead.firstPersonalEmail ? 'Find Phone' : 'Get Contact Info'}
                           </button>
                         )}
                         {(lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (

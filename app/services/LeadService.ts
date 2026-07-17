@@ -60,7 +60,29 @@ export class LeadService {
    */
   static async updateLead(leadId: string, updates: any) {
     await connectToDatabase();
-    return await Lead.findByIdAndUpdate(leadId, updates, { new: true });
+    return await Lead.findByIdAndUpdate(leadId, updates, { returnDocument: 'after' });
+  }
+
+  /**
+   * Clears stuck Apollo enrichment spinners for an entire job
+   */
+  static async clearStuckSpinnersForJob(jobId: string) {
+    await connectToDatabase();
+    return await Lead.updateMany(
+      { 
+        jobId,
+        $or: [
+          { apolloEmailEnrichmentRequested: true },
+          { apolloPhoneEnrichmentRequested: true }
+        ]
+      },
+      { 
+        $set: { 
+          apolloEmailEnrichmentRequested: false, 
+          apolloPhoneEnrichmentRequested: false 
+        } 
+      }
+    );
   }
 
   /**

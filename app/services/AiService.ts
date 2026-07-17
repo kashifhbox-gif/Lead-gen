@@ -39,9 +39,10 @@ export class AiService {
       ${dynamicContext}
       
       IMPORTANT: Format your response strictly as JSON with this exact structure:
-      { "score": number, "reasoning": "string", "outreachHook": "string" }
+      { "score": number, "reasoning": "string", "outreachHook": "string", "extractedEmail": "string" }
       
       The 'outreachHook' should be a short, personalized, and catchy opening line (1-2 sentences) you would send to this person in a DM to start a conversation, based specifically on the content of their post.
+      If you find an email in the post content, set 'extractedEmail' to that email. Otherwise set it to an empty string.
       
       Post Content:
       "${postContent}"
@@ -55,7 +56,7 @@ export class AiService {
     let resultText = response.text || "";
     resultText = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
     
-    let aiResult = { score: 0, reasoning: "Failed to parse", outreachHook: "" };
+    let aiResult = { score: 0, reasoning: "Failed to parse", outreachHook: "", extractedEmail: "" };
     try {
       aiResult = JSON.parse(resultText);
     } catch (e) {

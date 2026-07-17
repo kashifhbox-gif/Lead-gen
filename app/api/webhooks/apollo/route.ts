@@ -28,7 +28,7 @@ export async function POST(request: Request) {
           }
           
           if (emails.length > 0) {
-            lead.firstPersonalEmail = emails[0];
+            lead.firstPersonalEmail = emails[0] || lead.firstPersonalEmail;
             lead.allEmails = Array.from(new Set([...(lead.allEmails || []), ...emails]));
             updated = true;
           }
@@ -55,9 +55,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Also clear spinners for any leads that were not matched if we have a way to identify them,
-    // but bulk API doesn't echo back unmatched items clearly in the webhook.
-    // The timeout fallback handles clearing the spinners.
+    // Also clear spinners for any leads that were not matched.
+    // We passed `leadIds` in the webhook URL query parameters so we know exactly which leads were requested in this chunk.
+    const { searchParams } = new URL(request.url);
+    const leadIds = searchParams.get('leadIds')?.split(',').filter(Boolean) || [];
+
+    if (leadIds.length > 0) {
+      await Lead.updateMany(
+        { _id: { $in: leadIds } },
+        { 
+          $set: { 
+            apolloEmailEnrichmentRequested: false, 
+            apolloPhoneEnrichmentRequested: false,
+            apolloEnrichmentAttempted: true 
+          } 
+        }
+      );
+      console.log(`Cleared spinners for leads: ${leadIds.join(', ')}`);
+    }
 
     return NextResponse.json({ message: 'Bulk Webhook processed successfully' });
 

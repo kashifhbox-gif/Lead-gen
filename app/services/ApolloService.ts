@@ -19,8 +19,9 @@ export class ApolloService {
       reveal_phone_number: !!webhookUrl,
     };
 
+    let url = `${this.baseUrl}/people/match`;
     if (webhookUrl) {
-      payload.webhook_url = webhookUrl;
+      url += `?webhook_url=${encodeURIComponent(webhookUrl)}`;
     }
 
     if (name) {
@@ -34,7 +35,7 @@ export class ApolloService {
       }
     }
 
-    const response = await fetch(`${this.baseUrl}/people/match`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -63,8 +64,9 @@ export class ApolloService {
       reveal_phone_number: true,
     };
 
+    let url = `${this.baseUrl}/people/match`;
     if (webhookUrl) {
-      payload.webhook_url = webhookUrl;
+      url += `?webhook_url=${encodeURIComponent(webhookUrl)}`;
     }
 
     if (name) {
@@ -77,7 +79,7 @@ export class ApolloService {
       }
     }
 
-    const response = await fetch(`${this.baseUrl}/people/match`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -120,11 +122,12 @@ export class ApolloService {
       details
     };
 
+    let queryParams = `?reveal_personal_emails=true&reveal_phone_number=true`;
     if (webhookUrl) {
-      payload.webhook_url = webhookUrl;
+      queryParams += `&webhook_url=${encodeURIComponent(webhookUrl)}`;
     }
 
-    const response = await fetch(`${this.baseUrl}/people/bulk_match?reveal_personal_emails=true&reveal_phone_number=true`, {
+    const response = await fetch(`${this.baseUrl}/people/bulk_match${queryParams}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

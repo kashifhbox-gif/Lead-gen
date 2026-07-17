@@ -140,7 +140,7 @@ export class CampaignService {
    */
   static async updateCampaign(jobId: string, updates: any) {
     await connectToDatabase();
-    return await Job.findByIdAndUpdate(jobId, updates, { new: true });
+    return await Job.findByIdAndUpdate(jobId, updates, { returnDocument: 'after' });
   }
 
   /**

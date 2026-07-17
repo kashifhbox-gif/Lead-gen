@@ -68,6 +68,8 @@ export async function POST(
 
       const phoneNumbers = person.phone_numbers ? person.phone_numbers.map((p: any) => p.sanitized_number) : [];
 
+      const wasUnattempted = !lead.apolloEnrichmentAttempted;
+
       lead.firstPersonalEmail = emails[0] || undefined;
       lead.allEmails = Array.from(new Set(emails));
       lead.firstName = person.first_name || lead.firstName;
@@ -79,11 +81,16 @@ export async function POST(
 
       await lead.save();
 
+      if (wasUnattempted) {
+        const Job = require('@/app/models/Job').default;
+        await Job.findByIdAndUpdate(lead.jobId, { $inc: { totalEnrichmentTarget: 1 } });
+      }
+
       if (phoneNumbers.length === 0) {
         // Trigger a timeout event in case Apollo never sends a webhook
         await inngest.send({
-          name: "app/enrich.phone.timeout",
-          data: { leadId: lead._id.toString() },
+          name: "app/enrich.job.timeout",
+          data: { jobId: lead.jobId.toString() },
         });
       }
 
@@ -94,15 +101,22 @@ export async function POST(
         lead 
       });
     } else {
+      const wasUnattempted = !lead.apolloEnrichmentAttempted;
+
       lead.apolloEnrichmentAttempted = true;
       lead.apolloEmailEnrichmentRequested = true;
       lead.apolloPhoneEnrichmentRequested = true;
       await lead.save();
 
+      if (wasUnattempted) {
+        const Job = require('@/app/models/Job').default;
+        await Job.findByIdAndUpdate(lead.jobId, { $inc: { totalEnrichmentTarget: 1 } });
+      }
+
       // Trigger a timeout event in case Apollo never sends a webhook
       await inngest.send({
-        name: "app/enrich.phone.timeout",
-        data: { leadId: lead._id.toString() },
+        name: "app/enrich.job.timeout",
+        data: { jobId: lead.jobId.toString() },
       });
 
       return NextResponse.json({ 

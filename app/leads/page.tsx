@@ -69,7 +69,7 @@ export default function LeadsPage() {
           </div>
         </div>
         {leads.length > 0 && (
-          <a 
+          <a
             href="/api/export-leads"
             target="_blank"
             rel="noopener noreferrer"
@@ -109,18 +109,18 @@ export default function LeadsPage() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {paginatedLeads.map((lead) => (
-                  <tr 
-                    key={lead._id} 
-                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer" 
+                  <tr
+                    key={lead._id}
+                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
                     onClick={() => router.push(`/leads/${lead._id}`)}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Users className="w-4 h-4 text-purple-400 shrink-0" />
-                        <a 
-                          href={lead.profileUrl} 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href={lead.profileUrl}
+                          target="_blank"
+                          rel="noreferrer"
                           className="font-medium text-white hover:text-purple-400 transition-colors truncate max-w-[120px] sm:max-w-[150px] inline-block"
                           title={lead.profileUrl}
                         >
@@ -140,7 +140,6 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-400" />
                         <span className="font-semibold text-white">{lead.score}/10</span>
                       </div>
                     </td>
@@ -161,14 +160,14 @@ export default function LeadsPage() {
                 Page {currentPage} of {totalPages}
               </div>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1)); }}
                   disabled={currentPage === 1}
                   className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
                 >
                   Previous
                 </button>
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
