@@ -33,7 +33,7 @@ interface Job {
   searchQuery?: string;
   profileUrl?: string;
   status: string;
-  emailEnrichmentStatus?: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  emailEnrichmentStatus?: 'IDLE' | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   totalEnrichmentTarget?: number;
   createdAt: string;
 }
@@ -243,7 +243,10 @@ export default function JobDetailsPage() {
 
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4 flex-wrap">
-          <h2 className="text-lg font-semibold text-white">Scraped Leads ({stats.totalLeads})</h2>
+          <h2 className="text-lg font-semibold text-white">
+            Scraped Leads ({stats.totalLeads})
+          </h2>
+
           <a
             href={`/api/export-leads?jobId=${jobId}`}
             target="_blank"
@@ -253,27 +256,50 @@ export default function JobDetailsPage() {
             <Download className="w-4 h-4" />
             Export Qualified
           </a>
-          {/* {job?.status === 'COMPLETED' && !job.totalEnrichmentTarget && stats.qualifiedLeads > 0 && (!job?.emailEnrichmentStatus || job?.emailEnrichmentStatus === 'IDLE' || job?.emailEnrichmentStatus === 'FAILED') && (
-            <button
-              onClick={handleEnrichEmails}
-              disabled={enriching}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {enriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              Find Contact Info for Qualified Leads
-            </button>
-          )} */}
-          {/* {(job?.emailEnrichmentStatus === 'RUNNING' || (job?.emailEnrichmentStatus === 'COMPLETED' && (stats.completedEnrichment || 0) < (job.totalEnrichmentTarget || stats.qualifiedLeads))) && (
-            <span className="text-sm text-yellow-500 font-medium flex items-center gap-1">
-              <Loader2 className="w-4 h-4 animate-spin" /> Fetching Contact Info...
-            </span>
-          )} */}
-          {job?.emailEnrichmentStatus === 'COMPLETED' && stats.pendingEnrichment === 0 && (job.totalEnrichmentTarget || stats.qualifiedLeads) > 0 && (
-            <span className="text-sm text-emerald-400 font-medium flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Automated Enrichment Finished
-            </span>
-          )}
+
+          {/* Manual Batch Enrichment Button */}
+          {job?.status === 'COMPLETED' &&
+            stats.qualifiedLeads > 0 &&
+            (!job?.emailEnrichmentStatus ||
+              job?.emailEnrichmentStatus === 'IDLE' ||
+              job?.emailEnrichmentStatus === 'FAILED') && (
+              <button
+                onClick={handleEnrichEmails}
+                disabled={enriching}
+                className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {enriching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4" />
+                )}
+
+                {enriching
+                  ? 'Starting Enrichment...'
+                  : 'Find Contact Info for Qualified Leads'}
+              </button>
+            )}
+
+          {/* Enrichment Pending / Running */}
+          {(job?.emailEnrichmentStatus === 'PENDING' ||
+            job?.emailEnrichmentStatus === 'RUNNING') && (
+              <span className="text-sm text-yellow-500 font-medium flex items-center gap-1">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Fetching Contact Info...
+              </span>
+            )}
+
+          {/* Enrichment Completed */}
+          {job?.emailEnrichmentStatus === 'COMPLETED' &&
+            stats.pendingEnrichment === 0 &&
+            (job.totalEnrichmentTarget || stats.qualifiedLeads) > 0 && (
+              <span className="text-sm text-emerald-400 font-medium flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4" />
+                Automated Enrichment Finished
+              </span>
+            )}
         </div>
+
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <input
             type="text"
@@ -282,6 +308,7 @@ export default function JobDetailsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-indigo-500 w-full sm:w-64 transition-colors"
           />
+
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -319,120 +346,121 @@ export default function JobDetailsPage() {
                   const isAutomationFinished = (job?.status === 'COMPLETED' || job?.status === 'FAILED') && (job?.emailEnrichmentStatus === 'COMPLETED' || job?.emailEnrichmentStatus === 'FAILED' || stats.qualifiedLeads === 0);
                   const isAutomationActive = !isAutomationFinished;
                   return (
-                  <tr
-                    key={lead._id}
-                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                    onClick={() => router.push(`/leads/${lead._id}`)}
-                  >
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Activity className="w-4 h-4 text-indigo-400 shrink-0" />
-                        <a
-                          href={lead.profileUrl || '#'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-white hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-[150px] inline-block"
-                          title={lead.profileUrl}
-                        >
-                          {lead.profileUrl?.split('linkedin.com/in/')[1]?.split('/')[0] || 'Unknown'}
-                        </a>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-neutral-300 truncate max-w-[120px]" title={lead.phones?.[0] || ''}>
-                        {lead.phones && lead.phones.length > 0 ? lead.phones[0] : (lead.apolloPhoneEnrichmentRequested && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000))) ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-neutral-300 truncate max-w-[150px]" title={lead.firstPersonalEmail || ''}>
-                        {lead.firstPersonalEmail ? lead.firstPersonalEmail : (lead.apolloEmailEnrichmentRequested && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000))) ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      {lead.score !== undefined ? (
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white">{lead.score}/10</span>
+                    <tr
+                      key={lead._id}
+                      className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                      onClick={() => router.push(`/leads/${lead._id}`)}
+                    >
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Activity className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <a
+                            href={lead.profileUrl || '#'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-white hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-[150px] inline-block"
+                            title={lead.profileUrl}
+                          >
+                            {lead.profileUrl?.split('linkedin.com/in/')[1]?.split('/')[0] || 'Unknown'}
+                          </a>
                         </div>
-                      ) : (
-                        <span className="text-xs text-neutral-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Pending</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      {lead.score === undefined ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">Evaluating</span>
-                      ) : lead.isQualified ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Qualified</span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && !isAutomationActive && (
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-neutral-300 truncate max-w-[120px]" title={lead.phones?.[0] || ''}>
+                          {lead.phones && lead.phones.length > 0 ? lead.phones[0] : (lead.apolloPhoneEnrichmentRequested && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000))) ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-neutral-300 truncate max-w-[150px]" title={lead.firstPersonalEmail || ''}>
+                          {lead.firstPersonalEmail ? lead.firstPersonalEmail : (lead.apolloEmailEnrichmentRequested && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000))) ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <span className="text-neutral-600">-</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        {lead.score !== undefined ? (
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white">{lead.score}/10</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-neutral-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Pending</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        {lead.score === undefined ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">Evaluating</span>
+                        ) : lead.isQualified ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Qualified</span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && !isAutomationActive && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSingleEnrich(lead._id);
+                              }}
+                              className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors"
+                            >
+                              {lead.firstPersonalEmail ? 'Find Phone' : 'Get Contact Info'}
+                            </button>
+                          )}
+                          {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && isAutomationActive && (
+                            <span className="text-neutral-500 text-sm font-medium flex items-center gap-1" title="Waiting for automated enrichment batch">
+                              <Clock className="w-3 h-3" /> Queued
+                            </span>
+                          )}
+                          {(lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000)) && (
+                            <span className="text-yellow-500 text-sm font-medium flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Fetching
+                            </span>
+                          )}
+                          {((lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (lead.apolloEnrichmentRequestedAt && (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() >= 15 * 60 * 1000))) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSingleEnrich(lead._id);
+                              }}
+                              className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors flex items-center gap-1"
+                            >
+                              <XCircle className="w-3 h-3" /> Retry
+                            </button>
+                          )}
+                          {!hasBothContactMethods && lead.apolloEnrichmentAttempted && !lead.firstPersonalEmail && (!lead.phones || lead.phones.length === 0) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSingleEnrich(lead._id);
+                              }}
+                              className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors flex items-center gap-1"
+                            >
+                              <XCircle className="w-3 h-3" /> Retry
+                            </button>
+                          )}
+                          {(hasBothContactMethods || (lead.apolloEnrichmentAttempted && (lead.firstPersonalEmail || (lead.phones && lead.phones.length > 0)))) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
+                            <span className="text-emerald-500 text-sm font-medium flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Done
+                            </span>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSingleEnrich(lead._id);
+                              setLeadToDelete(lead._id);
+                              setDeleteLeadModalOpen(true);
                             }}
-                            className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors"
+                            className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
                           >
-                            {lead.firstPersonalEmail ? 'Find Phone' : 'Get Contact Info'}
+                            Delete
                           </button>
-                        )}
-                        {!hasBothContactMethods && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && !lead.apolloEnrichmentAttempted && lead.isQualified && isAutomationActive && (
-                          <span className="text-neutral-500 text-sm font-medium flex items-center gap-1" title="Waiting for automated enrichment batch">
-                            <Clock className="w-3 h-3" /> Queued
-                          </span>
-                        )}
-                        {(lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (!lead.apolloEnrichmentRequestedAt || (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() < 15 * 60 * 1000)) && (
-                          <span className="text-yellow-500 text-sm font-medium flex items-center gap-1">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Fetching
-                          </span>
-                        )}
-                        {((lead.apolloEmailEnrichmentRequested || lead.apolloPhoneEnrichmentRequested) && (lead.apolloEnrichmentRequestedAt && (Date.now() - new Date(lead.apolloEnrichmentRequestedAt).getTime() >= 15 * 60 * 1000))) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSingleEnrich(lead._id);
-                            }}
-                            className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors flex items-center gap-1"
-                          >
-                            <XCircle className="w-3 h-3" /> Retry
+                          <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">
+                            View
                           </button>
-                        )}
-                        {!hasBothContactMethods && lead.apolloEnrichmentAttempted && !lead.firstPersonalEmail && (!lead.phones || lead.phones.length === 0) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSingleEnrich(lead._id);
-                            }}
-                            className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors flex items-center gap-1"
-                          >
-                            <XCircle className="w-3 h-3" /> Retry
-                          </button>
-                        )}
-                        {(hasBothContactMethods || (lead.apolloEnrichmentAttempted && (lead.firstPersonalEmail || (lead.phones && lead.phones.length > 0)))) && !lead.apolloEmailEnrichmentRequested && !lead.apolloPhoneEnrichmentRequested && (
-                          <span className="text-emerald-500 text-sm font-medium flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Done
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLeadToDelete(lead._id);
-                            setDeleteLeadModalOpen(true);
-                          }}
-                          className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
-                        >
-                          Delete
-                        </button>
-                        <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )})}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

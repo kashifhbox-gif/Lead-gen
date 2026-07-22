@@ -4,7 +4,7 @@ export interface IJob extends Document {
   searchQuery: string;
   apifyRunId?: string;
   status: 'PENDING' | 'SCRAPING' | 'SCRAPED' | 'EVALUATING' | 'COMPLETED' | 'FAILED';
-  emailEnrichmentStatus?: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  emailEnrichmentStatus?: 'IDLE' | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   emailEnrichmentRunId?: string;
   totalEnrichmentTarget?: number;
   filters?: {
@@ -21,18 +21,42 @@ const JobSchema: Schema = new Schema(
   {
     searchQuery: { type: String, required: true },
     apifyRunId: { type: String, required: false },
+
     status: {
       type: String,
-      enum: ['PENDING', 'SCRAPING', 'SCRAPED', 'EVALUATING', 'COMPLETED', 'FAILED'],
+      enum: [
+        'PENDING',
+        'SCRAPING',
+        'SCRAPED',
+        'EVALUATING',
+        'COMPLETED',
+        'FAILED',
+      ],
       default: 'PENDING',
     },
+
     emailEnrichmentStatus: {
       type: String,
-      enum: ['IDLE', 'RUNNING', 'COMPLETED', 'FAILED'],
+      enum: [
+        'IDLE',
+        'PENDING',
+        'RUNNING',
+        'COMPLETED',
+        'FAILED',
+      ],
       default: 'IDLE',
     },
-    emailEnrichmentRunId: { type: String, required: false },
-    totalEnrichmentTarget: { type: Number, required: false },
+
+    emailEnrichmentRunId: {
+      type: String,
+      required: false,
+    },
+
+    totalEnrichmentTarget: {
+      type: Number,
+      required: false,
+    },
+
     filters: {
       postedLimit: { type: String, required: false },
       postedLimitDate: { type: String, required: false },
